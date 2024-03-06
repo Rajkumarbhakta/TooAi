@@ -15,7 +15,7 @@
 
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
-            android:value="subject_segment" />
+            android:value="subject_segment,barcode_ui" />
 
         <activity
             android:name=".MainActivity"

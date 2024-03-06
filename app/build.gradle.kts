@@ -71,6 +71,7 @@ dependencies {
     //ML kit
     implementation (libs.play.services.mlkit.document.scanner)
     implementation (libs.play.services.mlkit.subject.segmentation)
+    implementation (libs.play.services.code.scanner)
     //coil
     implementation(libs.coil.compose)
     //voyager navigation

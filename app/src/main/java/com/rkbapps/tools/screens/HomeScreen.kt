@@ -71,7 +71,11 @@ class HomeScreen(private val activity: Activity) : Screen {
             }) {
                 Text(text = "Subject Segmentation")
             }
-
+            Button(onClick = {
+                navigator!!.push(BarcodeScanScreen())
+            }) {
+                Text(text = "Scan Barcode")
+            }
 
 
             Text(
