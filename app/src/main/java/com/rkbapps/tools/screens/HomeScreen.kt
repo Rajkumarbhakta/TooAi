@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
+import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResult
@@ -34,9 +35,10 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.rkbapps.tools.BuildConfig
 import com.rkbapps.tools.constants.ScanModes
+import com.rkbapps.tools.utils.getActivity
 import java.io.File
 
-class HomeScreen(private val activity: Activity) : Screen {
+class HomeScreen() : Screen {
     @Composable
     override fun Content() {
         val scanMode = rememberSaveable {
@@ -57,11 +59,15 @@ class HomeScreen(private val activity: Activity) : Screen {
             verticalArrangement = Arrangement.Center
         ) {
             Button(onClick = {
-                onScanButtonClick(
-                    activity = activity,
-                    scannerLauncher = scannerLauncher,
-                    resultInfo = resultInfo
-                )
+                try {
+                    onScanButtonClick(
+                        activity = context.getActivity() as Activity,
+                        scannerLauncher = scannerLauncher,
+                        resultInfo = resultInfo
+                    )
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Something went wrong.", Toast.LENGTH_SHORT).show()
+                }
             }) {
                 Text(text = "Scan")
             }
@@ -71,6 +77,7 @@ class HomeScreen(private val activity: Activity) : Screen {
             }) {
                 Text(text = "Subject Segmentation")
             }
+
             Button(onClick = {
                 navigator!!.push(BarcodeScanScreen())
             }) {
