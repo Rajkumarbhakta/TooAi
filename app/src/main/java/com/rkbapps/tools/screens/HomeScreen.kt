@@ -1,154 +1,159 @@
 package com.rkbapps.tools.screens
 
-import android.app.Activity
-import android.content.Context
-import android.content.Intent
-import android.content.IntentSender
-import android.widget.Toast
-import androidx.activity.compose.ManagedActivityResultLauncher
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.ActivityResult
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableIntState
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
-import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
-import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
-import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
-import com.rkbapps.tools.BuildConfig
-import com.rkbapps.tools.constants.ScanModes
-import com.rkbapps.tools.utils.getActivity
-import java.io.File
+import com.rkbapps.tools.models.MenuItem
+import com.rkbapps.tools.models.docScanner
+import com.rkbapps.tools.models.imageSegementation
+import com.rkbapps.tools.models.qrScanner
+import com.rkbapps.tools.models.textRecognition
 
 class HomeScreen() : Screen {
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
-        val scanMode = rememberSaveable {
-            mutableIntStateOf(ScanModes.FULL_MODE)
-        }
-        val resultInfo = rememberSaveable {
-            mutableStateOf("")
-        }
-        val context = LocalContext.current
         val navigator = LocalNavigator.current
-        val scannerLauncher =
-            rememberLauncherForActivityResult(contract = ActivityResultContracts.StartIntentSenderForResult()) { activityResult ->
-                handelScanActivityResult(activityResult, resultInfo, context)
+        Scaffold(topBar = {
+            TopAppBar(
+                title = { Text(text = "Tools") }, colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
+        }) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                MenuRows(item1 = {
+                    MenuItems(manuItem = docScanner) {
+                        navigator!!.push(DocScannerScreen())
+                    }
+                }, item2 = {
+                    MenuItems(manuItem = qrScanner) {
+                        navigator!!.push(BarcodeScanScreen())
+                    }
+                })
+
+//                Spacer(modifier = Modifier.height(8.dp))
+
+                MenuRows(item1 = {
+                    MenuItems(manuItem = imageSegementation) {
+                        navigator!!.push(ImageSegmentationScreen())
+                    }
+                }, item2 = {
+                    MenuItems(manuItem = textRecognition) {
+                        navigator!!.push(TextReorganizationScreen())
+                    }
+                })
+
             }
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        }
+    }
+
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun MenuItems(manuItem: MenuItem, onItemClick: () -> Unit) {
+        OutlinedCard(
+            onClick = {
+                onItemClick()
+            }, modifier = Modifier
+                .fillMaxWidth()
+                .height(150.dp)
+                .padding(8.dp)
         ) {
-            Button(onClick = {
-                try {
-                    onScanButtonClick(
-                        activity = context.getActivity() as Activity,
-                        scannerLauncher = scannerLauncher,
-                        resultInfo = resultInfo
-                    )
-                } catch (e: Exception) {
-                    Toast.makeText(context, "Something went wrong.", Toast.LENGTH_SHORT).show()
-                }
-            }) {
-                Text(text = "Scan")
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = manuItem.icon),
+                    contentDescription = manuItem.title,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier
+                        .height(30.dp)
+                        .width(30.dp)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = manuItem.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = manuItem.subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+
             }
 
-            Button(onClick = {
-                navigator!!.push(ImageSegmentationScreen())
-            }) {
-                Text(text = "Subject Segmentation")
-            }
 
-            Button(onClick = {
-                navigator!!.push(BarcodeScanScreen())
-            }) {
-                Text(text = "Scan Barcode")
-            }
+        }
+    }
 
-
-            Text(
-                text = resultInfo.value,
+    @Composable
+    fun MenuRows(item1: @Composable () -> Unit, item2: @Composable () -> Unit) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            )
+                    .weight(1f)
+            ) {
+                item1()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                item2()
+            }
+
         }
+
     }
 
-    private fun onScanButtonClick(
-        activity: Activity,
-        scanMode: MutableIntState = mutableIntStateOf(ScanModes.FULL_MODE),
-        scannerLauncher: ManagedActivityResultLauncher<IntentSenderRequest, ActivityResult>,
-        resultInfo: MutableState<String>
-    ) {
-        val options =
-            GmsDocumentScannerOptions.Builder()
-                .setResultFormats(
-                    GmsDocumentScannerOptions.RESULT_FORMAT_PDF,
-                    GmsDocumentScannerOptions.RESULT_FORMAT_JPEG
-                )
-                .setGalleryImportAllowed(true)
-                .setScannerMode(scanMode.intValue)
 
-        GmsDocumentScanning.getClient(options.build())
-            .getStartScanIntent(activity)
-            .addOnSuccessListener { intentSender: IntentSender ->
-                scannerLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
-            }
-            .addOnFailureListener() { e: Exception ->
-                resultInfo.value = e.message.toString()
-            }
-    }
-
-    private fun handelScanActivityResult(
-        activityResult: ActivityResult,
-        resultInfo: MutableState<String>,
-        context: Context
-    ) {
-        val resultCode = activityResult.resultCode
-        val result = GmsDocumentScanningResult.fromActivityResultIntent(activityResult.data)
-        if (resultCode == Activity.RESULT_OK && result != null) {
-            resultInfo.value = result.toString()
-            val pages = result.pages
-            result.pdf?.uri?.path?.let { path ->
-                val externalUri = FileProvider.getUriForFile(
-                    context,
-                    "${BuildConfig.APPLICATION_ID}.provider",
-                    File(path)
-                )
-                val shareIntent =
-                    Intent(Intent.ACTION_SEND).apply {
-                        putExtra(Intent.EXTRA_STREAM, externalUri)
-                        type = "application/pdf"
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
-                context.startActivity(Intent.createChooser(shareIntent, "share pdf"))
-            }
-        } else if (resultCode == Activity.RESULT_CANCELED) {
-            resultInfo.value = "Canceled by user."
-        } else {
-            resultInfo.value = "Failed to scan."
-        }
-    }
 }
 
 

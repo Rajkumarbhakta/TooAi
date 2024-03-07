@@ -42,14 +42,14 @@ class BarcodeScanScreen() : Screen {
                 scanner.startScan().addOnSuccessListener { result ->
 
 //                    result.valueType
-                        barcodeResult.value = getSuccessfulMessage(result)
+                    barcodeResult.value = getSuccessfulMessage(result)
 
-                    }.addOnFailureListener {
-                        Toast.makeText(context, it.localizedMessage, Toast.LENGTH_SHORT).show()
+                }.addOnFailureListener {
+                    Toast.makeText(context, it.localizedMessage, Toast.LENGTH_SHORT).show()
 
-                    }.addOnCanceledListener {
-                        Toast.makeText(context, "Canceled by user.", Toast.LENGTH_SHORT).show()
-                    }
+                }.addOnCanceledListener {
+                    Toast.makeText(context, "Canceled by user.", Toast.LENGTH_SHORT).show()
+                }
 
             }) {
                 Text(text = "Scan")

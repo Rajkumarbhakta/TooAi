@@ -11,6 +11,8 @@ activityCompose = "1.7.0"
 composeBom = "2023.08.00"
 playServicesCodeScanner = "16.1.0"
 segmentationSelfie = "16.0.0-beta5"
+textRecognition = "16.0.0"
+textRecognitionDevanagari = "16.0.0"
 voyager = "1.0.0"
 playServicesMlkit = "16.0.0-beta1"
 
@@ -34,6 +36,8 @@ play-services-code-scanner = { module = "com.google.android.gms:play-services-co
 play-services-mlkit-document-scanner = { module = "com.google.android.gms:play-services-mlkit-document-scanner", version.ref = "playServicesMlkit" }
 play-services-mlkit-subject-segmentation = { module = "com.google.android.gms:play-services-mlkit-subject-segmentation", version.ref = "playServicesMlkit" }
 segmentation-selfie = { module = "com.google.mlkit:segmentation-selfie", version.ref = "segmentationSelfie" }
+text-recognition = { module = "com.google.mlkit:text-recognition", version.ref = "textRecognition" }
+text-recognition-devanagari = { module = "com.google.mlkit:text-recognition-devanagari", version.ref = "textRecognitionDevanagari" }
 voyager-hilt = { module = "cafe.adriel.voyager:voyager-hilt", version.ref = "voyager" }
 voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.ref = "voyager" }
 
