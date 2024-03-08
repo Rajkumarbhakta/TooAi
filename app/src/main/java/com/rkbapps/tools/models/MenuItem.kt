@@ -20,9 +20,9 @@ val qrScanner = MenuItem(
     icon = R.drawable.qr_code_scanner
 )
 
-val imageSegementation = MenuItem(
+val imageSegmentation = MenuItem(
     title = "Image Segmentation",
-    subtitle = "Remove image bacground with one click.",
+    subtitle = "Remove image background with one click.",
     icon = R.drawable.image_segmentation
 )
 

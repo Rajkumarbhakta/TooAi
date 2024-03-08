@@ -22,14 +22,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
+import com.rkbapps.tools.R
 import com.rkbapps.tools.models.MenuItem
 import com.rkbapps.tools.models.docScanner
-import com.rkbapps.tools.models.imageSegementation
+import com.rkbapps.tools.models.imageSegmentation
 import com.rkbapps.tools.models.qrScanner
 import com.rkbapps.tools.models.textRecognition
 
@@ -40,7 +42,8 @@ class HomeScreen() : Screen {
         val navigator = LocalNavigator.current
         Scaffold(topBar = {
             TopAppBar(
-                title = { Text(text = "Tools") }, colors = TopAppBarDefaults.topAppBarColors(
+                title = { Text(text = stringResource(id = R.string.app_name)) },
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
                 )
@@ -65,7 +68,7 @@ class HomeScreen() : Screen {
 //                Spacer(modifier = Modifier.height(8.dp))
 
                 MenuRows(item1 = {
-                    MenuItems(manuItem = imageSegementation) {
+                    MenuItems(manuItem = imageSegmentation) {
                         navigator!!.push(ImageSegmentationScreen())
                     }
                 }, item2 = {
