@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -203,6 +204,8 @@ class TextReorganizationScreen : Screen {
                                             context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                         val clip = ClipData.newPlainText("label", resultText.value)
                                         clipboard.setPrimaryClip(clip)
+                                        Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                                        navigator!!.pop()
                                     }) {
                                         Text(text = "Copy")
                                     }
