@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsKotlinAndroid)
+    kotlin("kapt")
+    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -67,6 +69,8 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    //material icon
+    implementation("androidx.compose.material:material-icons-extended")
 
     //ML kit
     implementation (libs.play.services.mlkit.document.scanner)
@@ -79,7 +83,16 @@ dependencies {
     //voyager navigation
     implementation(libs.voyager.hilt)
     implementation(libs.voyager.navigator)
+    //room
+    implementation(libs.androidx.room.runtime)
+    kapt(libs.room.compiler)
+    implementation(libs.androidx.room.ktx)
+    //hilt
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.android.compiler)
+    implementation(libs.androidx.hilt.navigation.compose)
+}
 
-
-
+kapt {
+    correctErrorTypes = true
 }
