@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import java.io.File
@@ -23,7 +24,7 @@ fun Context.getActivity(): ComponentActivity? = when (this) {
     else -> null
 }
 
-fun Context.copyText(text:String){
+fun Context.copyText(text: String) {
     val clipboard: ClipboardManager =
         this.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val clip = ClipData.newPlainText(
@@ -93,6 +94,37 @@ private fun saveImageToStream(bitmap: Bitmap, outputStream: OutputStream?) {
 }
 
 
+fun copyFileToExternalStorage(context: Context, uri: Uri, destinationPath: String): Boolean {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri)
+        if (inputStream != null) {
+            val directory =
+                File(Environment.getExternalStorageDirectory().absolutePath + separator + Environment.DIRECTORY_DOCUMENTS + separator + destinationPath)
+            if (!directory.exists()) {
+                directory.mkdirs()
+            }
+            val fileName = System.currentTimeMillis().toString() + ".pdf"
+            val file = File(directory, fileName)
+            val outputStream =
+                FileOutputStream(file)
+            val buffer = ByteArray(1024)
+            var read: Int
+            while (inputStream.read(buffer).also { read = it } != -1) {
+                outputStream.write(buffer, 0, read)
+            }
+            inputStream.close()
+            outputStream.flush()
+            outputStream.close()
+            true
+        } else {
+            Log.e("CopyFile", "Error copying file")
+            false
+        }
+    } catch (e: Exception) {
+        Log.e("CopyFile", "Error copying file", e)
+        false
+    }
+}
 
 
 
