@@ -9,6 +9,8 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.activity.ComponentActivity
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.rkbapps.tools.db.QrScan
 import java.io.File
 import java.io.File.separator
 import java.io.FileOutputStream
@@ -19,6 +21,8 @@ fun Context.getActivity(): ComponentActivity? = when (this) {
     is ContextWrapper -> baseContext.getActivity()
     else -> null
 }
+
+
 
 fun Context.saveImage(bitmap: Bitmap, folderName: String): Boolean {
     return if (Build.VERSION.SDK_INT >= 29) {

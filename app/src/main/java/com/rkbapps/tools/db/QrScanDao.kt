@@ -21,7 +21,7 @@ interface QrScanDao {
     suspend fun updateQrScan(qrScan: QrScan)
 
     @Query("select * from qrscan")
-    suspend fun getAllQrScan(): List<QrScan>
+    fun getAllQrScan(): Flow<List<QrScan>>
 
     @Query("select * from qrscan where id=:id")
     suspend fun getQrScanById(id: kotlin.Long):QrScan

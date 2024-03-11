@@ -1,28 +1,31 @@
 package com.rkbapps.tools.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Contacts
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.QrCode
-import androidx.compose.material.icons.filled.Sms
-import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -40,13 +43,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.hilt.getViewModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import com.rkbapps.tools.R
 import com.rkbapps.tools.db.QrScan
 import com.rkbapps.tools.viewmodels.BarcodeViewModel
 import java.util.Locale
@@ -63,6 +71,14 @@ class BarcodeScanScreen() : Screen {
             mutableStateOf("")
         }
         val qrScanHistoryList = viewModel.qrScanList.collectAsState()
+
+        val isDialogVisible = remember {
+            mutableStateOf(false)
+        }
+
+        val currentQrScan = remember {
+            mutableStateOf<QrScan?>(null)
+        }
 
 
         Scaffold(
@@ -93,12 +109,18 @@ class BarcodeScanScreen() : Screen {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(text = "History")
+                Text(
+                    text = "History",
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.titleLarge
+                )
                 if (qrScanHistoryList.value.isEmpty()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f)
+                            .weight(1f), contentAlignment = Alignment.Center
                     ) {
                         Text(text = "Nothing here.")
                     }
@@ -108,7 +130,6 @@ class BarcodeScanScreen() : Screen {
                             .fillMaxWidth()
                             .weight(1f)
                     ) {
-
                         items(
                             count = qrScanHistoryList.value.size,
                             key = { key ->
@@ -116,12 +137,12 @@ class BarcodeScanScreen() : Screen {
                             }
                         ) { position ->
                             HistoryItems(item = qrScanHistoryList.value[position]) {
-
+                                currentQrScan.value = qrScanHistoryList.value[position]
+                                isDialogVisible.value = true
                             }
                         }
                     }
                 }
-
 
                 Button(
                     modifier = Modifier
@@ -135,18 +156,18 @@ class BarcodeScanScreen() : Screen {
                         scanner.startScan().addOnSuccessListener { result ->
                             //result.valueType
                             barcodeResult.value = getSuccessfulMessage(result)
-                            viewModel.addNewQrScan(
-                                QrScan(
-                                    id = 0,
-                                    displayValue = result.displayValue,
-                                    rawVale = result.rawValue,
-                                    format = result.format,
-                                    valueType = result.valueType,
-                                    timeMillis = System.currentTimeMillis()
-                                )
+                            val qrScan = QrScan(
+                                id = 0,
+                                displayValue = result.displayValue,
+                                rawVale = result.rawValue,
+                                format = result.format,
+                                valueType = result.valueType,
+                                timeMillis = System.currentTimeMillis()
                             )
+                            currentQrScan.value = qrScan
+                            isDialogVisible.value = true
+                            viewModel.addNewQrScan(qrScan)
 //                            barcodeAction(result.valueType, context, result.rawValue!!)
-
                         }.addOnFailureListener {
                             Toast.makeText(context, it.localizedMessage, Toast.LENGTH_SHORT).show()
                             Log.e("BARCODESCANNER", "Barcode error", it)
@@ -157,8 +178,85 @@ class BarcodeScanScreen() : Screen {
                     Text(text = "Scan")
                 }
 //                Text(text = barcodeResult.value)
-
             }
+
+            if (isDialogVisible.value && currentQrScan.value != null) {
+                Dialog(onDismissRequest = { isDialogVisible.value = false }) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.5f)
+                            .background(
+                                color = MaterialTheme.colorScheme.surface,
+                                shape = RoundedCornerShape(8.dp)
+                            ), horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Result", modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp, horizontal = 16.dp),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                        SelectionContainer(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(8.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            Text(
+                                text = currentQrScan.value!!.getData(),
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Button(
+                                modifier = Modifier.weight(1f),
+                                onClick = { isDialogVisible.value = false }) {
+                                Text(text = "Dismiss")
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            if (currentQrScan.value!!.id == 0L) {
+                                Button(modifier = Modifier.weight(1f), onClick = {
+                                    val clipboard: ClipboardManager =
+                                        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = ClipData.newPlainText(
+                                        "label",
+                                        currentQrScan.value!!.getData()
+                                    )
+                                    clipboard.setPrimaryClip(clip)
+                                    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                                }) {
+                                    Text(text = "Copy")
+                                }
+                            } else {
+                                Button(modifier = Modifier.weight(1f), onClick = {
+                                    viewModel.deleteQrScan(currentQrScan.value!!)
+                                    isDialogVisible.value = false
+                                    Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show()
+                                }) {
+                                    Text(text = "Delete")
+                                }
+                            }
+                        }
+
+
+                    }
+
+
+                }
+            }
+
+
         }
 
 
@@ -170,11 +268,14 @@ class BarcodeScanScreen() : Screen {
         item: QrScan,
         onClick: () -> Unit
     ) {
-        OutlinedCard(onClick = {
-            onClick()
-        },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)
-            ) {
+        OutlinedCard(
+            onClick = {
+                onClick()
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+        ) {
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -182,55 +283,56 @@ class BarcodeScanScreen() : Screen {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = when (item.valueType) {
-                        Barcode.TYPE_WIFI -> {
-                            Icons.Default.Wifi
-                        }
+                    painter = painterResource(
+                        id = when (item.valueType) {
+                            Barcode.TYPE_WIFI -> {
+                                R.drawable.wifi
+                            }
 
-                        Barcode.TYPE_URL -> {
-                            Icons.Default.Link
-                        }
+                            Barcode.TYPE_URL -> {
+                                R.drawable.link
+                            }
 
-                        Barcode.TYPE_SMS -> {
-                            Icons.Default.Sms
-                        }
+                            Barcode.TYPE_SMS -> {
+                                R.drawable.sms
+                            }
 
-                        Barcode.TYPE_PHONE -> {
-                            Icons.Default.PhoneAndroid
-                        }
+                            Barcode.TYPE_PHONE -> {
+                                R.drawable.smartphone
+                            }
 
-                        Barcode.TYPE_GEO -> {
-                            Icons.Default.LocationOn
-                        }
+                            Barcode.TYPE_GEO -> {
+                                R.drawable.location
+                            }
 
-                        Barcode.TYPE_CONTACT_INFO -> {
-                            Icons.Default.Contacts
-                        }
+                            Barcode.TYPE_CONTACT_INFO -> {
+                                R.drawable.contact
+                            }
 
-                        else -> {
-                            Icons.Default.QrCode
+                            else -> {
+                                R.drawable.qr_code
+                            }
                         }
-                    }, contentDescription = "",
+                    ), contentDescription = "",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(30.dp)
                 )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(text = item.displayValue ?: "", modifier = Modifier.weight(1f))
             }
         }
     }
 
-
     private fun getSuccessfulMessage(barcode: Barcode): String {
         return String.format(
             Locale.getDefault(),
-            "\bDisplay Value: %s\nRaw Value: %s\nFormat: %s\nValue Type: %s",
+            "Display Value: %s\nRaw Value: %s\nFormat: %s\nValue Type: %s",
             barcode.displayValue,
             barcode.rawValue,
             barcode.format,
             barcode.valueType
         )
     }
-
 
     private fun barcodeAction(valueType: Int, context: Context, rawValue: String) {
         try {

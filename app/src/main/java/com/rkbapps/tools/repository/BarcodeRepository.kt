@@ -6,6 +6,7 @@ import com.rkbapps.tools.db.QrScanDao
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emitAll
 import javax.inject.Inject
 
 class BarcodeRepository @Inject constructor(
@@ -19,11 +20,21 @@ class BarcodeRepository @Inject constructor(
     suspend fun addNewQrScan(qrScan: QrScan): Boolean {
         return try {
             val id = qrScanDao.newQrScan(qrScan)
-            val new =qrScanDao.getQrScanById(id)
-            val tempList: MutableList<QrScan> = ArrayList()
-            tempList.addAll(_qrScanList.value)
-            tempList.add(new)
-            _qrScanList.emit(tempList)
+//            val new =qrScanDao.getQrScanById(id)
+//            val tempList: MutableList<QrScan> = ArrayList()
+//            tempList.addAll(_qrScanList.value)
+//            tempList.add(new)
+//            _qrScanList.emit(tempList)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun deleteQrScan(qrScan: QrScan): Boolean {
+        return try {
+            qrScanDao.deleteQrScan(qrScan)
             true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -34,7 +45,7 @@ class BarcodeRepository @Inject constructor(
     suspend fun getAllQrScans() {
         try {
             val qrScans = qrScanDao.getAllQrScan()
-            _qrScanList.emit(qrScans)
+            _qrScanList.emitAll(qrScans)
         } catch (e: Exception) {
             e.printStackTrace()
         }

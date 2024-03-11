@@ -12,7 +12,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class BarcodeViewModel @Inject constructor(private val repository: BarcodeRepository):ViewModel() {
+class BarcodeViewModel @Inject constructor(private val repository: BarcodeRepository) :
+    ViewModel() {
 
     val qrScanList: StateFlow<List<QrScan>> = repository.qrScanList
 
@@ -22,11 +23,17 @@ class BarcodeViewModel @Inject constructor(private val repository: BarcodeReposi
         }
     }
 
-    fun addNewQrScan(qrScan: QrScan){
-        viewModelScope.async (Dispatchers.IO) {
+    fun addNewQrScan(qrScan: QrScan) {
+        viewModelScope.async(Dispatchers.IO) {
             repository.addNewQrScan(qrScan)
         }.let {
 
+        }
+    }
+
+    fun deleteQrScan(qrScan: QrScan) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteQrScan(qrScan)
         }
     }
 }
