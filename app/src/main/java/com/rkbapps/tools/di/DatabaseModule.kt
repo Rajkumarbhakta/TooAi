@@ -3,7 +3,8 @@ package com.rkbapps.tools.di
 import android.content.Context
 import androidx.room.Room
 import com.rkbapps.tools.db.Database
-import com.rkbapps.tools.db.QrScanDao
+import com.rkbapps.tools.db.dao.QrScanDao
+import com.rkbapps.tools.db.dao.RecognizedTextDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -29,6 +30,12 @@ object DatabaseModule {
     @Singleton
     fun provideQrScanDao(database: Database): QrScanDao {
         return database.qrScanDao()
+    }
+
+    @Singleton
+    @Provides
+    fun provideRecognizedTextDao(database: Database): RecognizedTextDao {
+        return database.recognizedTextDao()
     }
 
 }

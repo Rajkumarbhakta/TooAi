@@ -45,6 +45,7 @@ import coil.compose.AsyncImage
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
+import com.rkbapps.tools.utils.ProgressDialog
 import com.rkbapps.tools.utils.saveImage
 import java.io.IOException
 
@@ -73,6 +74,10 @@ class ImageSegmentationScreen() : Screen {
         }
 
         val isDialogVisible = remember {
+            mutableStateOf(false)
+        }
+
+        val isProcessing = remember {
             mutableStateOf(false)
         }
 
@@ -129,6 +134,7 @@ class ImageSegmentationScreen() : Screen {
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         onClick = {
+                            isProcessing.value = true
                             try {
                                 val inputImage = InputImage.fromFilePath(context, imageUri.value!!)
                                 val options = SubjectSegmenterOptions.Builder()
@@ -139,16 +145,23 @@ class ImageSegmentationScreen() : Screen {
                                         val foregroundBitmap = result.foregroundBitmap
                                         bitmap.value = foregroundBitmap
                                         isDialogVisible.value = true
+                                        isProcessing.value = false
                                     }.addOnFailureListener {
                                         Toast.makeText(context, "${it.message}", Toast.LENGTH_SHORT)
                                             .show()
+                                        isProcessing.value = false
                                     }
                             } catch (e: IOException) {
                                 e.printStackTrace()
+                                isProcessing.value = false
                             }
                         }) {
                         Text(text = "Detect")
                     }
+                }
+
+                if (isProcessing.value){
+                    ProgressDialog(isVisible = isProcessing, dismissible = false)
                 }
 
                 if (isDialogVisible.value && bitmap.value != null) {
@@ -194,20 +207,22 @@ class ImageSegmentationScreen() : Screen {
                                 }
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Button(modifier = Modifier.weight(1f), onClick = {
+                                    isProcessing.value = true
                                     if (context.saveImage(bitmap.value!!, "")) {
                                         isDialogVisible.value = false
-                                        navigator!!.pop()
                                         Toast.makeText(
                                             context,
                                             "Saved in pictures folder.",
                                             Toast.LENGTH_SHORT
                                         ).show()
+                                        isProcessing.value = false
                                     } else {
                                         Toast.makeText(
                                             context,
                                             "Something went wrong.",
                                             Toast.LENGTH_SHORT
                                         ).show()
+                                        isProcessing.value = false
                                     }
 
                                 }) {

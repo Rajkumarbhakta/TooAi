@@ -2,7 +2,7 @@ package com.rkbapps.tools.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rkbapps.tools.db.QrScan
+import com.rkbapps.tools.db.entity.QrScan
 import com.rkbapps.tools.repository.BarcodeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers

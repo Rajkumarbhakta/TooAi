@@ -1,5 +1,7 @@
 package com.rkbapps.tools.utils
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ContentValues
 import android.content.Context
 import android.content.ContextWrapper
@@ -8,9 +10,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.widget.Toast
 import androidx.activity.ComponentActivity
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.rkbapps.tools.db.QrScan
 import java.io.File
 import java.io.File.separator
 import java.io.FileOutputStream
@@ -22,7 +23,17 @@ fun Context.getActivity(): ComponentActivity? = when (this) {
     else -> null
 }
 
-
+fun Context.copyText(text:String){
+    val clipboard: ClipboardManager =
+        this.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = ClipData.newPlainText(
+        "label",
+        text
+    )
+    clipboard.setPrimaryClip(clip)
+    Toast.makeText(this, "Copied", Toast.LENGTH_SHORT)
+        .show()
+}
 
 fun Context.saveImage(bitmap: Bitmap, folderName: String): Boolean {
     return if (Build.VERSION.SDK_INT >= 29) {

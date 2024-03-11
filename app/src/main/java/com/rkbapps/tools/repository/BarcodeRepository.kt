@@ -1,8 +1,8 @@
 package com.rkbapps.tools.repository
 
 import android.content.Context
-import com.rkbapps.tools.db.QrScan
-import com.rkbapps.tools.db.QrScanDao
+import com.rkbapps.tools.db.entity.QrScan
+import com.rkbapps.tools.db.dao.QrScanDao
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

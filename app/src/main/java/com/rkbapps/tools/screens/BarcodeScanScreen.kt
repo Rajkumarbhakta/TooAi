@@ -55,7 +55,7 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.rkbapps.tools.R
-import com.rkbapps.tools.db.QrScan
+import com.rkbapps.tools.db.entity.QrScan
 import com.rkbapps.tools.viewmodels.BarcodeViewModel
 import java.util.Locale
 

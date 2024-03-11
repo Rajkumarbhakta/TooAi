@@ -1,11 +1,11 @@
-package com.rkbapps.tools.db
+package com.rkbapps.tools.db.dao
 
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import com.rkbapps.tools.db.entity.QrScan
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -24,7 +24,7 @@ interface QrScanDao {
     fun getAllQrScan(): Flow<List<QrScan>>
 
     @Query("select * from qrscan where id=:id")
-    suspend fun getQrScanById(id: kotlin.Long):QrScan
+    suspend fun getQrScanById(id: kotlin.Long): QrScan
 
 
 }

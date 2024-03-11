@@ -1,8 +1,7 @@
-package com.rkbapps.tools.db
+package com.rkbapps.tools.db.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.google.mlkit.vision.barcode.common.Barcode
 import java.util.Locale
 
 @Entity
