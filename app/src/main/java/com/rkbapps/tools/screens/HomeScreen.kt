@@ -28,6 +28,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.rememberLottieComposition
 import com.rkbapps.tools.R
 import com.rkbapps.tools.models.MenuItem
 import com.rkbapps.tools.models.docScanner
@@ -40,6 +44,7 @@ class HomeScreen() : Screen {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.current
+        val composition = rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.animation))
         Scaffold(topBar = {
             TopAppBar(
                 title = { Text(text = stringResource(id = R.string.app_name)) },
@@ -55,6 +60,21 @@ class HomeScreen() : Screen {
                     .padding(paddingValues),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+
+                    LottieAnimation(
+                        composition = composition.value,
+                        iterations = LottieConstants.IterateForever
+                    )
+
+                }
+
                 MenuRows(item1 = {
                     MenuItems(manuItem = docScanner) {
                         navigator!!.push(DocScannerScreen())
@@ -76,6 +96,17 @@ class HomeScreen() : Screen {
                         navigator!!.push(TextReorganizationScreen())
                     }
                 })
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+
+                    Text(text = "Made with ❤\nBY RKB", textAlign = TextAlign.Center)
+
+                }
 
             }
         }

@@ -11,6 +11,7 @@ espressoCore = "3.5.1"
 lifecycleRuntimeKtx = "2.7.0"
 activityCompose = "1.7.0"
 composeBom = "2023.08.00"
+lottieComposeVersion = "6.4.0"
 playServicesCodeScanner = "16.1.0"
 roomCompiler = "2.6.1"
 roomRuntime = "2.6.1"
@@ -21,6 +22,7 @@ voyager = "1.0.0"
 playServicesMlkit = "16.0.0-beta1"
 
 [libraries]
+android-lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "lottieComposeVersion" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "roomRuntime" }
