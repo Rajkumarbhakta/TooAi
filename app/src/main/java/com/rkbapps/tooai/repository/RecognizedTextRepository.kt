@@ -14,7 +14,7 @@ class RecognizedTextRepository @Inject constructor(private val recognizedTextDao
 
     suspend fun insertRecognizedText(recognizedText: RecognizedText): Boolean {
         return try {
-            val id = recognizedTextDao.newRecognizedText(recognizedText)
+            recognizedTextDao.newRecognizedText(recognizedText)
             true
         } catch (e: Exception) {
             e.printStackTrace()

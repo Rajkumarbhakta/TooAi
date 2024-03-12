@@ -51,9 +51,6 @@ class DocScannerScreen : Screen {
     override fun Content() {
         val context = LocalContext.current
         val navigator = LocalNavigator.current
-        val scanMode = rememberSaveable {
-            mutableIntStateOf(ScanModes.FULL_MODE)
-        }
         val resultInfo = rememberSaveable {
             mutableStateOf("")
         }

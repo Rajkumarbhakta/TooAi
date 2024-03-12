@@ -11,7 +11,6 @@ import javax.inject.Inject
 
 class BarcodeRepository @Inject constructor(
     private val qrScanDao: QrScanDao,
-    @ApplicationContext context: Context
 ) {
 
     private val _qrScanList = MutableStateFlow<List<QrScan>>(emptyList())
@@ -19,12 +18,7 @@ class BarcodeRepository @Inject constructor(
 
     suspend fun addNewQrScan(qrScan: QrScan): Boolean {
         return try {
-            val id = qrScanDao.newQrScan(qrScan)
-//            val new =qrScanDao.getQrScanById(id)
-//            val tempList: MutableList<QrScan> = ArrayList()
-//            tempList.addAll(_qrScanList.value)
-//            tempList.add(new)
-//            _qrScanList.emit(tempList)
+            qrScanDao.newQrScan(qrScan)
             true
         } catch (e: Exception) {
             e.printStackTrace()

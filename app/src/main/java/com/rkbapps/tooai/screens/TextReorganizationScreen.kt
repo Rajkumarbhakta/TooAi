@@ -191,7 +191,7 @@ class TextReorganizationScreen : Screen {
                                         InputImage.fromFilePath(context, imageUri.value!!)
                                     val recognizer =
                                         TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                                    val result = recognizer.process(inputImage)
+                                    recognizer.process(inputImage)
                                         .addOnSuccessListener { text ->
 //                                        resultText.value = text.text
                                             val recognizedText = RecognizedText(0, text.text)
