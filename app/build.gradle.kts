@@ -69,8 +69,6 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    //material icon
-    implementation("androidx.compose.material:material-icons-extended")
 
     //ML kit
     implementation (libs.play.services.mlkit.document.scanner)
