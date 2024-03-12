@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import cafe.adriel.voyager.navigator.Navigator
+import cafe.adriel.voyager.transitions.SlideTransition
 import com.rkbapps.tooai.screens.HomeScreen
 import com.rkbapps.tooai.ui.theme.tooaiTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -22,7 +23,9 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Navigator(HomeScreen())
+                    Navigator(HomeScreen()){navigator->
+                        SlideTransition(navigator)
+                    }
                 }
             }
         }

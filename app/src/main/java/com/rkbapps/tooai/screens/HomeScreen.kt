@@ -118,7 +118,7 @@ class HomeScreen : Screen {
             }, modifier = Modifier
                 .fillMaxWidth()
                 .height(150.dp)
-                .padding(8.dp)
+                .padding(4.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -160,7 +160,7 @@ class HomeScreen : Screen {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {

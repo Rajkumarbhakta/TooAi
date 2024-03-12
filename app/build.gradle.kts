@@ -83,6 +83,7 @@ dependencies {
     //voyager navigation
     implementation(libs.voyager.hilt)
     implementation(libs.voyager.navigator)
+    implementation(libs.voyager.transitions)
     //room
     implementation(libs.androidx.room.runtime)
     kapt(libs.room.compiler)
