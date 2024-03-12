@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Tools"
+rootProject.name = "TooAi"
 include(":app")
  

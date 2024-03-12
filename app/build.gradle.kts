@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.rkbapps.tools"
+    namespace = "com.rkbapps.tooai"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.rkbapps.tools"
+        applicationId = "com.rkbapps.tooai"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
