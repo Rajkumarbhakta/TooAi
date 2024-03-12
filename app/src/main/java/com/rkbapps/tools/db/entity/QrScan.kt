@@ -13,9 +13,9 @@ data class QrScan(
     val rawVale: String?,
     val format: Int?,
     val valueType: Int?,
-    val timeMillis:Long
-){
-    fun getData():String{
+    val timeMillis: Long
+) {
+    fun getData(): String {
         return String.format(
             Locale.getDefault(),
             "Display Value: %s\nRaw Value: %s\nFormat: %s\nValue Type: %s",

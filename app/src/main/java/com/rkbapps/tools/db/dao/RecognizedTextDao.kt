@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
 interface RecognizedTextDao {
 
     @Insert
-    suspend fun newRecognizedText(recognizedText: RecognizedText):Long
+    suspend fun newRecognizedText(recognizedText: RecognizedText): Long
 
     @Delete
     suspend fun deleteRecognizedText(recognizedText: RecognizedText)

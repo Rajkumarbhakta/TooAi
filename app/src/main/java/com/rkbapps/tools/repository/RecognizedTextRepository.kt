@@ -10,8 +10,7 @@ import javax.inject.Inject
 class RecognizedTextRepository @Inject constructor(private val recognizedTextDao: RecognizedTextDao) {
 
     private val _recognizedTextList = MutableStateFlow<List<RecognizedText>>(emptyList())
-
-    val recognizedTextList : StateFlow<List<RecognizedText>> = _recognizedTextList
+    val recognizedTextList: StateFlow<List<RecognizedText>> = _recognizedTextList
 
     suspend fun insertRecognizedText(recognizedText: RecognizedText): Boolean {
         return try {
@@ -23,20 +22,20 @@ class RecognizedTextRepository @Inject constructor(private val recognizedTextDao
         }
     }
 
-    suspend fun deleteRecognizedText(recognizedText: RecognizedText):Boolean{
+    suspend fun deleteRecognizedText(recognizedText: RecognizedText): Boolean {
         return try {
             recognizedTextDao.deleteRecognizedText(recognizedText)
             true
-        }catch (e:Exception){
+        } catch (e: Exception) {
             e.printStackTrace()
             false
         }
     }
 
-    suspend fun getAllRecognizedText(){
+    suspend fun getAllRecognizedText() {
         try {
             _recognizedTextList.emitAll(recognizedTextDao.getAllRecognizedText())
-        }catch (e:Exception){
+        } catch (e: Exception) {
             e.printStackTrace()
         }
     }

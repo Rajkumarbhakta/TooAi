@@ -39,7 +39,8 @@ import com.rkbapps.tools.models.imageSegmentation
 import com.rkbapps.tools.models.qrScanner
 import com.rkbapps.tools.models.textRecognition
 
-class HomeScreen() : Screen {
+class HomeScreen : Screen {
+
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
@@ -54,6 +55,7 @@ class HomeScreen() : Screen {
                 )
             )
         }) { paddingValues ->
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -67,12 +69,10 @@ class HomeScreen() : Screen {
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-
                     LottieAnimation(
                         composition = composition.value,
                         iterations = LottieConstants.IterateForever
                     )
-
                 }
 
                 MenuRows(item1 = {
@@ -84,9 +84,6 @@ class HomeScreen() : Screen {
                         navigator!!.push(BarcodeScanScreen())
                     }
                 })
-
-//                Spacer(modifier = Modifier.height(8.dp))
-
                 MenuRows(item1 = {
                     MenuItems(manuItem = imageSegmentation) {
                         navigator!!.push(ImageSegmentationScreen())
@@ -113,7 +110,6 @@ class HomeScreen() : Screen {
     }
 
 
-    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun MenuItems(manuItem: MenuItem, onItemClick: () -> Unit) {
         OutlinedCard(
@@ -186,7 +182,6 @@ class HomeScreen() : Screen {
         }
 
     }
-
 
 }
 

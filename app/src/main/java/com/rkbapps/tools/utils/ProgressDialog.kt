@@ -28,20 +28,18 @@ fun ProgressDialog(
             isVisible.value = false
         }
     }) {
-
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(8.dp))
+                .background(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(8.dp)
+                )
                 .padding(10.dp)
         ) {
-
             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.width(8.dp))
             Text(text = title)
         }
-
     }
-
-
 }

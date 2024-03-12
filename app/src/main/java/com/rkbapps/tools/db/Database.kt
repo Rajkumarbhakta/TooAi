@@ -8,7 +8,7 @@ import com.rkbapps.tools.db.entity.QrScan
 import com.rkbapps.tools.db.entity.RecognizedText
 
 @Database(entities = [QrScan::class, RecognizedText::class], version = 1)
-abstract class Database :RoomDatabase(){
+abstract class Database : RoomDatabase() {
     abstract fun qrScanDao(): QrScanDao
     abstract fun recognizedTextDao(): RecognizedTextDao
 }
