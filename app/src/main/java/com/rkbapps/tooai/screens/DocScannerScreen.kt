@@ -138,12 +138,12 @@ class DocScannerScreen : Screen {
                                             if (copyFileToExternalStorage(
                                                     context,
                                                     externalUri,
-                                                    "tooai"
+                                                    "TooAi"
                                                 )
                                             ) {
                                                 Toast.makeText(
                                                     context,
-                                                    "Saved in Documents/tooai folder.",
+                                                    "Saved in \"Documents/TooAi\" folder.",
                                                     Toast.LENGTH_SHORT
                                                 )
                                                     .show()
