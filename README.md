@@ -39,4 +39,8 @@
 | <img alt="Home" src="screenshots/text-recognization.jpg" width="250"/> |
 
 
+#License
+
+```
+MIT License
 
