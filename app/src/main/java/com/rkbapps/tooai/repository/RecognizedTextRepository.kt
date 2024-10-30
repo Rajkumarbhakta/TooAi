@@ -21,7 +21,6 @@ class RecognizedTextRepository @Inject constructor(private val recognizedTextDao
             false
         }
     }
-
     suspend fun deleteRecognizedText(recognizedText: RecognizedText): Boolean {
         return try {
             recognizedTextDao.deleteRecognizedText(recognizedText)
@@ -31,7 +30,6 @@ class RecognizedTextRepository @Inject constructor(private val recognizedTextDao
             false
         }
     }
-
     suspend fun getAllRecognizedText() {
         try {
             _recognizedTextList.emitAll(recognizedTextDao.getAllRecognizedText())
@@ -39,6 +37,4 @@ class RecognizedTextRepository @Inject constructor(private val recognizedTextDao
             e.printStackTrace()
         }
     }
-
-
 }

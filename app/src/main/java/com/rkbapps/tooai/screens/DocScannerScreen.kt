@@ -46,7 +46,6 @@ import com.rkbapps.tooai.utils.getActivity
 import java.io.File
 
 class DocScannerScreen : Screen {
-    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
         val context = LocalContext.current
@@ -202,15 +201,6 @@ class DocScannerScreen : Screen {
         val result = GmsDocumentScanningResult.fromActivityResultIntent(activityResult.data)
         if (resultCode == Activity.RESULT_OK && result != null) {
             resultInfo.value = result
-//            val pages = result.pages
-//            result.pdf?.uri?.path?.let { path ->
-//                val externalUri = FileProvider.getUriForFile(
-//                    context,
-//                    "${BuildConfig.APPLICATION_ID}.provider",
-//                    File(path)
-//                )
-//
-//            }
         } else if (resultCode == Activity.RESULT_CANCELED) {
             navigator.pop()
             Toast.makeText(context, "Canceled by user.", Toast.LENGTH_SHORT).show()

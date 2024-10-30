@@ -17,6 +17,7 @@ class BarcodeViewModel @Inject constructor(private val repository: BarcodeReposi
 
     val qrScanList: StateFlow<List<QrScan>> = repository.qrScanList
 
+
     init {
         viewModelScope.launch(Dispatchers.IO) {
             repository.getAllQrScans()

@@ -44,6 +44,4 @@ class BarcodeRepository @Inject constructor(
             e.printStackTrace()
         }
     }
-
-
 }

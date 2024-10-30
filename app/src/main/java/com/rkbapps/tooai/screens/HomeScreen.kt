@@ -148,10 +148,7 @@ class HomeScreen : Screen {
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center
                 )
-
             }
-
-
         }
     }
 

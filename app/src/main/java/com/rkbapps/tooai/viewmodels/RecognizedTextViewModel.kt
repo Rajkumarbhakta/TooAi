@@ -12,8 +12,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class RecognizedTextViewModel @Inject constructor(private val repository: RecognizedTextRepository) :
-    ViewModel() {
+class RecognizedTextViewModel @Inject constructor(private val repository: RecognizedTextRepository) : ViewModel() {
 
     val recognizedTextList: StateFlow<List<RecognizedText>> = repository.recognizedTextList
 

@@ -55,7 +55,6 @@ import com.rkbapps.tooai.viewmodels.BarcodeViewModel
 import java.util.Locale
 
 class BarcodeScanScreen() : Screen {
-    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
         val context = LocalContext.current
@@ -243,7 +242,6 @@ class BarcodeScanScreen() : Screen {
 
     }
 
-    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun HistoryItems(
         item: QrScan,
@@ -347,6 +345,5 @@ class BarcodeScanScreen() : Screen {
         }
 
     }
-
 
 }

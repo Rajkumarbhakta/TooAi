@@ -46,7 +46,6 @@ import java.io.IOException
 
 
 class ImageSegmentationScreen() : Screen {
-    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
         val context = LocalContext.current
@@ -107,17 +106,12 @@ class ImageSegmentationScreen() : Screen {
                     AsyncImage(
                         model = imageUri.value,
                         contentDescription = "",
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(8.dp)
-                            .clickable {
+                        modifier = Modifier.weight(1f).padding(8.dp).clickable {
                                 galleryLauncher.launch("image/*")
                             }
                     )
                     Button(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                         onClick = {
                             isProcessing.value = true
                             try {
@@ -153,19 +147,13 @@ class ImageSegmentationScreen() : Screen {
 
                     Dialog(onDismissRequest = { isDialogVisible.value = false }) {
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .fillMaxHeight(0.7f)
-                                .background(
-                                    color = MaterialTheme.colorScheme.surface,
-                                    shape = RoundedCornerShape(8.dp)
-                                ), horizontalAlignment = Alignment.CenterHorizontally
+                            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.7f).
+                            background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(8.dp)),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
 
                             Text(
-                                text = "Result", modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp, horizontal = 16.dp),
+                                text = "Result", modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 16.dp),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center
@@ -173,15 +161,11 @@ class ImageSegmentationScreen() : Screen {
                             AsyncImage(
                                 model = bitmap.value,
                                 contentDescription = "",
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(8.dp)
+                                modifier = Modifier.weight(1f).padding(8.dp)
                             )
 
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
@@ -213,10 +197,7 @@ class ImageSegmentationScreen() : Screen {
                                 }) {
                                     Text(text = "Save")
                                 }
-
                             }
-
-
                         }
                     }
 

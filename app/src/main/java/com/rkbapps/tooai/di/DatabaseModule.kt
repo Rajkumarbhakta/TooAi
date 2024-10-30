@@ -37,5 +37,4 @@ object DatabaseModule {
     fun provideRecognizedTextDao(database: Database): RecognizedTextDao {
         return database.recognizedTextDao()
     }
-
 }

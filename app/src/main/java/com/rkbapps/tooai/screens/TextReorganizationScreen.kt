@@ -122,9 +122,7 @@ class TextReorganizationScreen : Screen {
                         Column(modifier = Modifier.fillMaxSize()) {
                             Text(
                                 text = "History",
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                                 style = MaterialTheme.typography.titleLarge
                             )
                             LazyColumn(
@@ -147,11 +145,8 @@ class TextReorganizationScreen : Screen {
                                     }
                                 }
                             }
-
                             Button(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                                 onClick = {
                                     galleryLauncher.launch("image/*")
                                 }) {
@@ -163,27 +158,20 @@ class TextReorganizationScreen : Screen {
                 } else {
                     AsyncImage(
                         model = imageUri.value,
-                        contentDescription = "", modifier = Modifier
-                            .weight(1f)
-                            .padding(8.dp)
-                            .clickable {
+                        contentDescription = "", modifier = Modifier.weight(1f).padding(8.dp).clickable {
                                 galleryLauncher.launch("image/*")
                             }
                     )
                     Row {
                         Button(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(vertical = 8.dp, horizontal = 16.dp),
+                            modifier = Modifier.weight(1f).padding(vertical = 8.dp, horizontal = 16.dp),
                             onClick = {
                                 imageUri.value = null
                             }) {
                             Text(text = "Cancel")
                         }
                         Button(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(vertical = 8.dp, horizontal = 16.dp),
+                            modifier = Modifier.weight(1f).padding(vertical = 8.dp, horizontal = 16.dp),
                             onClick = {
                                 isProcessing.value = true
                                 try {
@@ -225,53 +213,30 @@ class TextReorganizationScreen : Screen {
 
                 if (isDialogVisible.value && currentRecognizedText.value != null) {
                     Dialog(onDismissRequest = { isDialogVisible.value = false }) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .fillMaxHeight(0.7f)
-                                .background(
-                                    color = MaterialTheme.colorScheme.surface,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .padding(
-                                    horizontal = 16.dp,
-                                    vertical = 8.dp
-                                )
+                        Column(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.7f)
+                                .background(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(8.dp))
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Text(
                                 text = "Recognized Text",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp, horizontal = 16.dp),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-
-                                textAlign = TextAlign.Center
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 16.dp),
+                                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center
                             )
                             SelectionContainer(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .verticalScroll(rememberScrollState())
+                                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())
                             ) {
                                 Text(
                                     text = currentRecognizedText.value!!.content,
-                                    textAlign = TextAlign.Justify,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(8.dp)
+                                    textAlign = TextAlign.Justify, modifier = Modifier.fillMaxWidth().padding(8.dp)
                                 )
                             }
 
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Button(
-                                    modifier = Modifier.weight(1f),
-                                    onClick = { isDialogVisible.value = false }) {
+                                    modifier = Modifier.weight(1f), onClick = { isDialogVisible.value = false }) {
                                     Text(text = "Dismiss")
                                 }
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -295,8 +260,6 @@ class TextReorganizationScreen : Screen {
 
                             }
                         }
-
-
                     }
                 }
             }

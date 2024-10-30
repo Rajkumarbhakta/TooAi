@@ -6,7 +6,6 @@ import java.util.Locale
 
 @Entity
 data class QrScan(
-
     @PrimaryKey(autoGenerate = true)
     val id: Long,
     val displayValue: String?,
