@@ -1,18 +1,24 @@
+import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsKotlinAndroid)
-    id("com.google.dagger.hilt.android")
-    id("com.google.devtools.ksp")
+    alias(libs.plugins.dagger.hilt.android)
+    alias(libs.plugins.devtools.ksp)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlinx.serialization)
 }
 
 android {
     namespace = "com.rkbapps.tooai"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.rkbapps.tooai"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -32,23 +38,26 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
+
     buildFeatures {
         compose = true
         buildConfig = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.1"
-    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+tasks.withType<KotlinJvmCompile>().configureEach {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+        freeCompilerArgs.add("-opt-in=kotlin.RequiresOptIn")
     }
 }
 
@@ -78,10 +87,7 @@ dependencies {
     implementation (libs.text.recognition.devanagari)
     //coil
     implementation(libs.coil.compose)
-    //voyager navigation
-    implementation(libs.voyager.hilt)
-    implementation(libs.voyager.navigator)
-    implementation(libs.voyager.transitions)
+
     //room
     implementation(libs.androidx.room.runtime)
     ksp(libs.room.compiler)
@@ -92,4 +98,9 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     //lottie
     implementation (libs.android.lottie.compose)
+    // navigation3
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+    implementation(libs.androidx.material3.navigation3)
 }

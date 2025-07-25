@@ -1,4 +1,4 @@
-package com.rkbapps.tooai.screens
+package com.rkbapps.tooai.ui.screens
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack

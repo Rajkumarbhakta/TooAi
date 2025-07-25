@@ -3,24 +3,31 @@ agp = "8.9.1"
 coilCompose = "2.7.0"
 hiltAndroid = "2.56.1"
 hiltNavigationCompose = "1.2.0"
-kotlin = "1.9.0"
-coreKtx = "1.13.1"
+kotlin = "2.2.0"
+coreKtx = "1.16.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
-lifecycleRuntimeKtx = "2.8.6"
+lifecycleRuntimeKtx = "2.9.2"
 activityCompose = "1.10.1"
-composeBom = "2025.04.01"
-lottieComposeVersion = "6.6.2"
+composeBom = "2025.07.00"
+lottieComposeVersion = "6.6.7"
 playServicesCodeScanner = "16.1.0"
 
-room = "2.7.1"
+room = "2.7.2"
+
+ksp = "2.2.0-2.0.2"
 
 segmentationSelfie = "16.0.0-beta6"
 textRecognition = "16.0.1"
 
-voyager = "1.0.0"
 playServicesMlkit = "16.0.0-beta1"
+
+#
+nav3Core = "1.0.0-alpha01"
+nav3Material = "1.0.0-SNAPSHOT"
+nav3Lifecycle = "1.0.0-SNAPSHOT"
+kotlinxSerializationCore = "1.8.1"
 
 [libraries]
 android-lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "lottieComposeVersion" }
@@ -52,13 +59,25 @@ segmentation-selfie = { module = "com.google.mlkit:segmentation-selfie", version
 text-recognition = { module = "com.google.mlkit:text-recognition", version.ref = "textRecognition" }
 text-recognition-devanagari = { module = "com.google.mlkit:text-recognition-devanagari", version.ref = "textRecognition" }
 
-voyager-hilt = { module = "cafe.adriel.voyager:voyager-hilt", version.ref = "voyager" }
-voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.ref = "voyager" }
-voyager-transitions = { module = "cafe.adriel.voyager:voyager-transitions", version.ref = "voyager" }
+
+#
+# Core Navigation 3 libraries
+androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "nav3Core" }
+androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "nav3Core" }
+# Optional add-on libraries
+androidx-material3-navigation3 = { group = "androidx.compose.material3.adaptive", name = "adaptive-navigation3", version.ref = "nav3Material" }
+androidx-lifecycle-viewmodel-navigation3 = { module = "androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "nav3Lifecycle" }
+kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerializationCore" }
 
 
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 jetbrainsKotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+devtools-ksp = {id="com.google.devtools.ksp",version.ref="ksp"}
+dagger-hilt-android = {id="com.google.dagger.hilt.android",version.ref="hiltAndroid"}
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+
+
 
