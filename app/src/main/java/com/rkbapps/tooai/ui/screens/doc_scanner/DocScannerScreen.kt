@@ -1,4 +1,4 @@
-package com.rkbapps.tooai.ui.screens
+package com.rkbapps.tooai.ui.screens.doc_scanner
 
 import android.app.Activity
 import android.content.Context
@@ -37,7 +37,8 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.rkbapps.tooai.BuildConfig
-import com.rkbapps.tooai.constants.ScanModes
+import com.rkbapps.tooai.utils.ScanModes
+import com.rkbapps.tooai.ui.composabels.TopBar
 import com.rkbapps.tooai.utils.copyFileToExternalStorage
 import com.rkbapps.tooai.utils.getActivity
 import java.io.File

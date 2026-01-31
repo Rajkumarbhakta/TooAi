@@ -1,4 +1,4 @@
-package com.rkbapps.tooai.ui.screens
+package com.rkbapps.tooai.ui.screens.barcode
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -49,7 +49,7 @@ import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.rkbapps.tooai.R
 import com.rkbapps.tooai.db.entity.QrScan
-import com.rkbapps.tooai.viewmodels.BarcodeViewModel
+import com.rkbapps.tooai.ui.composabels.TopBar
 import java.util.Locale
 
 @Composable

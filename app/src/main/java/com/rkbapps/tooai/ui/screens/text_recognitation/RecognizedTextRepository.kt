@@ -1,4 +1,4 @@
-package com.rkbapps.tooai.repository
+package com.rkbapps.tooai.ui.screens.text_recognitation
 
 import com.rkbapps.tooai.db.dao.RecognizedTextDao
 import com.rkbapps.tooai.db.entity.RecognizedText

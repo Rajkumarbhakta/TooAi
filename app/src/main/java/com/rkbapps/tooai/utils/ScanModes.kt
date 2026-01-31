@@ -1,4 +1,4 @@
-package com.rkbapps.tooai.constants
+package com.rkbapps.tooai.utils
 
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 

@@ -20,5 +20,6 @@ sealed class NavigationEntry: NavKey {
     @Serializable
     data object TextRecognization: NavigationEntry()
 
-
+    @Serializable
+    data object AiChat: NavigationEntry()
 }

@@ -1,4 +1,4 @@
-package com.rkbapps.tooai.ui.screens
+package com.rkbapps.tooai.ui.screens.image_segmentation
 
 import android.graphics.Bitmap
 import android.net.Uri
@@ -38,6 +38,7 @@ import coil.compose.AsyncImage
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
+import com.rkbapps.tooai.ui.composabels.TopBar
 import com.rkbapps.tooai.utils.ProgressDialog
 import com.rkbapps.tooai.utils.saveImage
 import java.io.IOException

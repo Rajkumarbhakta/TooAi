@@ -17,7 +17,7 @@ android {
 
     defaultConfig {
         applicationId = "com.rkbapps.tooai"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 2
         versionName = "1.1"
@@ -85,9 +85,12 @@ dependencies {
     implementation (libs.play.services.code.scanner)
     implementation (libs.text.recognition)
     implementation (libs.text.recognition.devanagari)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+
     //coil
     implementation(libs.coil.compose)
-
     //room
     implementation(libs.androidx.room.runtime)
     ksp(libs.room.compiler)

@@ -1,4 +1,4 @@
-package com.rkbapps.tooai.ui.screens
+package com.rkbapps.tooai.ui.screens.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -93,6 +93,9 @@ fun HomeScreen(backStack: SnapshotStateList<Any>) {
                     backStack.add(NavigationEntry.TextRecognization)
                 }
             })
+            MenuItems(manuItem = textRecognition) {
+                backStack.add(NavigationEntry.AiChat)
+            }
 
             Box(
                 modifier = Modifier
