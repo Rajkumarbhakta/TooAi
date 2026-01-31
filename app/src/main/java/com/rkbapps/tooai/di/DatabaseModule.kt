@@ -3,6 +3,7 @@ package com.rkbapps.tooai.di
 import android.content.Context
 import androidx.room.Room
 import com.rkbapps.tooai.db.Database
+import com.rkbapps.tooai.db.dao.DocumentScansDao
 import com.rkbapps.tooai.db.dao.QrScanDao
 import com.rkbapps.tooai.db.dao.RecognizedTextDao
 import dagger.Module
@@ -23,7 +24,7 @@ object DatabaseModule {
             context.applicationContext,
             Database::class.java,
             "app_database"
-        ).build()
+        ).addMigrations(Database.MIGRATION_1_2).build()
     }
 
     @Provides
@@ -37,4 +38,10 @@ object DatabaseModule {
     fun provideRecognizedTextDao(database: Database): RecognizedTextDao {
         return database.recognizedTextDao()
     }
+    
+    @Singleton
+    @Provides
+    fun provideDocumentScanDao(database: Database): DocumentScansDao = database.documentScanDao()
+
+    
 }

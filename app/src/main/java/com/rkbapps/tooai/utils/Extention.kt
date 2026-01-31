@@ -13,10 +13,17 @@ import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import com.rkbapps.tooai.models.PdfDoc
 import java.io.File
 import java.io.File.separator
 import java.io.FileOutputStream
 import java.io.OutputStream
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 fun Context.getActivity(): ComponentActivity? = when (this) {
     is ComponentActivity -> this
@@ -93,38 +100,62 @@ private fun saveImageToStream(bitmap: Bitmap, outputStream: OutputStream?) {
     }
 }
 
+fun savePdfToDocuments(context: Context, sourceUri: Uri,destinationPath: String): PdfDoc? {
+    val resolver = context.contentResolver
+    val time = System.currentTimeMillis()
+    val fileName = "TooAi Scan - $time.pdf"
 
-fun copyFileToExternalStorage(context: Context, uri: Uri, destinationPath: String): Boolean {
-    return try {
-        val inputStream = context.contentResolver.openInputStream(uri)
-        if (inputStream != null) {
-            val directory =
-                File(Environment.getExternalStorageDirectory().absolutePath + separator + Environment.DIRECTORY_DOCUMENTS + separator + destinationPath)
-            if (!directory.exists()) {
-                directory.mkdirs()
+    val contentValues = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+        put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOCUMENTS + separator+destinationPath)
+        put(MediaStore.MediaColumns.IS_PENDING, 1)
+    }
+
+    val collection = MediaStore.Files.getContentUri("external")
+
+    val itemUri = resolver.insert(collection, contentValues) ?: return null
+
+    try {
+        resolver.openOutputStream(itemUri)?.use { output ->
+            resolver.openInputStream(sourceUri)?.use { input ->
+                input.copyTo(output)
             }
-            val fileName = System.currentTimeMillis().toString() + ".pdf"
-            val file = File(directory, fileName)
-            val outputStream =
-                FileOutputStream(file)
-            val buffer = ByteArray(1024)
-            var read: Int
-            while (inputStream.read(buffer).also { read = it } != -1) {
-                outputStream.write(buffer, 0, read)
-            }
-            inputStream.close()
-            outputStream.flush()
-            outputStream.close()
-            true
-        } else {
-            Log.e("CopyFile", "Error copying file")
-            false
         }
+
+        contentValues.clear()
+        contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+        resolver.update(itemUri, contentValues, null, null)
+
+        return PdfDoc(
+            title = fileName,
+            path = itemUri.toString(),
+            timeMillis = time
+        )
+
     } catch (e: Exception) {
-        Log.e("CopyFile", "Error copying file", e)
-        false
+        resolver.delete(itemUri, null, null)
+        Log.e("SavePdf", "Failed", e)
+        return null
     }
 }
+
+
+fun Long.toDateTimeString(
+    pattern: String = "dd MMM yyyy HH:mm:ss",
+    locale: Locale = Locale.getDefault()
+): String {
+    return if (Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+        val instant = Instant.ofEpochMilli(this)
+        val zdt = instant.atZone(ZoneId.systemDefault())
+        zdt.format(DateTimeFormatter.ofPattern(pattern).withLocale(locale))
+    } else {
+        val sdf = java.text.SimpleDateFormat(pattern, locale)
+        sdf.timeZone = TimeZone.getDefault()
+        sdf.format(Date(this))
+    }
+}
+
 
 
 

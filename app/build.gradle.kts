@@ -85,9 +85,11 @@ dependencies {
     implementation (libs.play.services.code.scanner)
     implementation (libs.text.recognition)
     implementation (libs.text.recognition.devanagari)
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.10.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+
+    //coroutine
+    implementation(libs.coroutines.play.services)
+    implementation(libs.coroutines.guava)
+    implementation(libs.coroutines.android)
 
     //coil
     implementation(libs.coil.compose)

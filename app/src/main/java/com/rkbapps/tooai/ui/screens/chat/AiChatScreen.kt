@@ -13,7 +13,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.google.mlkit.genai.common.FeatureStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
