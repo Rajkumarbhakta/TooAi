@@ -43,5 +43,10 @@ object DatabaseModule {
     @Provides
     fun provideDocumentScanDao(database: Database): DocumentScansDao = database.documentScanDao()
 
+    @Singleton
+    @Provides
+    fun provideLlmModelDao(database: Database) = database.llmModelDao()
+
+
     
 }

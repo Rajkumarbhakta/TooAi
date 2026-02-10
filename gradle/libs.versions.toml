@@ -15,6 +15,7 @@ lottieComposeVersion = "6.6.7"
 playServicesCodeScanner = "16.1.0"
 
 room = "2.7.2"
+sqlite = "2.6.2"
 
 ksp = "2.2.0-2.0.2"
 
@@ -22,6 +23,7 @@ segmentationSelfie = "16.0.0-beta6"
 textRecognition = "16.0.1"
 
 playServicesMlkit = "16.0.0-beta1"
+liteRtLm = "0.8.0"
 
 coroutine = "1.10.2"
 
@@ -37,6 +39,7 @@ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = 
 androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
+androidx-sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hiltAndroid" }
 hilt-android-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hiltAndroid" }
@@ -63,6 +66,8 @@ play-services-mlkit-subject-segmentation = { module = "com.google.android.gms:pl
 text-recognition = { module = "com.google.mlkit:text-recognition", version.ref = "textRecognition" }
 text-recognition-devanagari = { module = "com.google.mlkit:text-recognition-devanagari", version.ref = "textRecognition" }
 
+litertlm-android = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "liteRtLm" }
+
 #coroutine
 coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services",version.ref = "coroutine" }
 coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava",version.ref="coroutine" }
@@ -87,6 +92,3 @@ devtools-ksp = {id="com.google.devtools.ksp",version.ref="ksp"}
 dagger-hilt-android = {id="com.google.dagger.hilt.android",version.ref="hiltAndroid"}
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-
-
-

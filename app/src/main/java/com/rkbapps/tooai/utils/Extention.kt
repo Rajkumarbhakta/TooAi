@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -18,6 +19,8 @@ import java.io.File
 import java.io.File.separator
 import java.io.FileOutputStream
 import java.io.OutputStream
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -140,20 +143,79 @@ fun savePdfToDocuments(context: Context, sourceUri: Uri,destinationPath: String)
     }
 }
 
+fun Context.getFileName(uri: Uri): String?{
+    return try {
+        when (uri.scheme) {
+            "content" -> {
+                this.contentResolver.query(uri,null,null,null,null)?.use { cursor ->
+                    if (cursor.moveToFirst()){
+                        val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        if (nameIndex!=-1){
+                            cursor.getString(nameIndex)
+                        }else{
+                            null
+                        }
+                    }else{
+                        null
+                    }
+                }
+            }
+            "file" -> {
+                uri.lastPathSegment
+            }
+            else -> {
+                null
+            }
+        }
+    }catch (e: Exception){
+        null
+    }
+}
+
+fun Context.getFileNameAndSize(uri: Uri): Pair<String, Long>{
+    val contentResolver = this.contentResolver
+    var fileSize = 0L
+    var displayName = ""
+    try {
+        contentResolver.query(uri,arrayOf(OpenableColumns.SIZE, OpenableColumns.DISPLAY_NAME),null,null,null)?.use { cursor ->
+            if (cursor.moveToFirst()){
+                val sizeIndex = cursor.getColumnIndexOrThrow(OpenableColumns.SIZE)
+                fileSize = cursor.getLong(sizeIndex)
+                val nameIndex = cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME)
+                displayName = cursor.getString(nameIndex)
+            }
+        }
+    }catch (e: Exception){
+        e.printStackTrace()
+    }
+    return displayName to fileSize
+}
+
+// Round a Double to 2 decimal places and return as Double.
+fun Double.roundTo2Decimals(): Double {
+    if (this.isNaN() || this.isInfinite()) return this
+    return BigDecimal.valueOf(this)
+        .setScale(2, RoundingMode.HALF_UP)
+        .toDouble()
+}
+
+// Round a Float to 2 decimal places and return as Double.
+fun Float.roundTo2Decimals(): Double {
+    if (this.isNaN() || this.isInfinite()) return this.toDouble()
+    return BigDecimal.valueOf(this.toDouble())
+        .setScale(2, RoundingMode.HALF_UP)
+        .toDouble()
+}
+
+
 
 fun Long.toDateTimeString(
     pattern: String = "dd MMM yyyy HH:mm:ss",
     locale: Locale = Locale.getDefault()
 ): String {
-    return if (Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-        val instant = Instant.ofEpochMilli(this)
-        val zdt = instant.atZone(ZoneId.systemDefault())
-        zdt.format(DateTimeFormatter.ofPattern(pattern).withLocale(locale))
-    } else {
-        val sdf = java.text.SimpleDateFormat(pattern, locale)
-        sdf.timeZone = TimeZone.getDefault()
-        sdf.format(Date(this))
-    }
+    val instant = Instant.ofEpochMilli(this)
+    val zdt = instant.atZone(ZoneId.systemDefault())
+    return zdt.format(DateTimeFormatter.ofPattern(pattern).withLocale(locale))
 }
 
 

@@ -58,6 +58,7 @@ tasks.withType<KotlinJvmCompile>().configureEach {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
         freeCompilerArgs.add("-opt-in=kotlin.RequiresOptIn")
+        freeCompilerArgs.add("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
     }
 }
 
@@ -86,6 +87,9 @@ dependencies {
     implementation (libs.text.recognition)
     implementation (libs.text.recognition.devanagari)
 
+    //LiteRt
+    implementation(libs.litertlm.android)
+
     //coroutine
     implementation(libs.coroutines.play.services)
     implementation(libs.coroutines.guava)
@@ -97,6 +101,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     ksp(libs.room.compiler)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.sqlite.bundled)
     //hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)

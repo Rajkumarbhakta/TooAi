@@ -16,7 +16,7 @@ import com.rkbapps.tooai.ui.screens.doc_scanner.DocScannerScreen
 import com.rkbapps.tooai.ui.screens.home.HomeScreen
 import com.rkbapps.tooai.ui.screens.image_segmentation.ImageSegmentationScreen
 import com.rkbapps.tooai.ui.screens.text_recognitation.TextReorganizationScreen
-import com.rkbapps.tooai.ui.screens.chat.AiChatScreen
+import com.rkbapps.tooai.ui.screens.model_and_chat_manager.AiChatScreen
 
 @Composable
 fun NavManager(
