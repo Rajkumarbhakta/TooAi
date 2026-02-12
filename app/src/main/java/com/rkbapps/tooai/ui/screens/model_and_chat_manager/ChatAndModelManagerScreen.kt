@@ -49,6 +49,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rkbapps.tooai.R
 import com.rkbapps.tooai.db.entity.LlmModel
+import com.rkbapps.tooai.navigation.NavigationEntry
 import com.rkbapps.tooai.ui.composabels.TopBar
 import com.rkbapps.tooai.ui.theme.TooAiTheme
 import com.rkbapps.tooai.utils.ModelConfigs
@@ -58,7 +59,7 @@ import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AiChatScreen(backStack: SnapshotStateList<Any>) {
+fun ChatAndModelManagerScreen(backStack: SnapshotStateList<Any>) {
 
     val context = LocalContext.current
 
@@ -248,9 +249,11 @@ fun AiChatScreen(backStack: SnapshotStateList<Any>) {
                 item {
                     Spacer(modifier = Modifier.height(10.dp))
                 }
-                items(llmModels){llmModel->
+                items(llmModels, key = {
+                    it.id
+                }){llmModel->
                     LlmModelItemUi(model = llmModel){
-
+                        backStack.add(NavigationEntry.AiChat(llmModel.id))
                     }
                 }
             }
@@ -292,6 +295,7 @@ fun LlmModelItemUi(
                 Icon(painter = painterResource(R.drawable.download),"Download Size")
                 Text("${fileSIze.toInt()} MB", style = MaterialTheme.typography.labelLarge)
             }
+            Spacer(modifier = Modifier.height(10.dp))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,

@@ -21,5 +21,10 @@ sealed class NavigationEntry: NavKey {
     data object TextRecognization: NavigationEntry()
 
     @Serializable
-    data object AiChat: NavigationEntry()
+    data object ChatAndModelManagement: NavigationEntry()
+
+    @Serializable
+    data class AiChat(val modelId: Long): NavigationEntry()
+
+
 }

@@ -94,7 +94,7 @@ fun HomeScreen(backStack: SnapshotStateList<Any>) {
                 }
             })
             MenuItems(manuItem = textRecognition) {
-                backStack.add(NavigationEntry.AiChat)
+                backStack.add(NavigationEntry.ChatAndModelManagement)
             }
 
             Box(

@@ -12,11 +12,12 @@ import androidx.navigation3.runtime.rememberSavedStateNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.navigation3.ui.rememberSceneSetupNavEntryDecorator
 import com.rkbapps.tooai.ui.screens.barcode.BarcodeScanScreen
+import com.rkbapps.tooai.ui.screens.chat.ChatScreen
 import com.rkbapps.tooai.ui.screens.doc_scanner.DocScannerScreen
 import com.rkbapps.tooai.ui.screens.home.HomeScreen
 import com.rkbapps.tooai.ui.screens.image_segmentation.ImageSegmentationScreen
+import com.rkbapps.tooai.ui.screens.model_and_chat_manager.ChatAndModelManagerScreen
 import com.rkbapps.tooai.ui.screens.text_recognitation.TextReorganizationScreen
-import com.rkbapps.tooai.ui.screens.model_and_chat_manager.AiChatScreen
 
 @Composable
 fun NavManager(
@@ -58,8 +59,15 @@ fun NavManager(
             entry<NavigationEntry.TextRecognization> {
                 TextReorganizationScreen(backStack)
             }
-            entry<NavigationEntry.AiChat> {
-                AiChatScreen(backStack)
+            entry<NavigationEntry.ChatAndModelManagement> {
+                ChatAndModelManagerScreen(backStack)
+            }
+            entry<NavigationEntry.AiChat>{
+                val modelId = it.modelId
+                ChatScreen(
+                    backStack = backStack,
+                    modelId = modelId
+                )
             }
 
 
