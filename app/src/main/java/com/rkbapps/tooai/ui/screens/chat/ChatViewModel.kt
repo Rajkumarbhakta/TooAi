@@ -31,4 +31,12 @@ class ChatViewModel @Inject constructor(
             repository.sendMessage(message)
         }
     }
+
+
+    override fun onCleared() {
+        chatState.value.instance?.engine?.close()
+        chatState.value.instance?.conversation?.close()
+        super.onCleared()
+    }
+
 }

@@ -21,10 +21,6 @@ class ChatAndModelManagerViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: ChatAndModelManagerRepository,
 ) : ViewModel() {
-
-    private val _status = MutableStateFlow<Int?>(null)
-    val status = _status.asStateFlow()
-
     val llmModels = repository.llmModels.stateIn(
         viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -64,4 +60,11 @@ class ChatAndModelManagerViewModel @Inject constructor(
             repository.updateNewModel(model = model)
         }
     }
+
+    fun deleteModel(model: LlmModel){
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteModel(model = model)
+        }
+    }
+
 }

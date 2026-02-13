@@ -1,6 +1,7 @@
 package com.rkbapps.tooai.ui.screens.model_and_chat_manager
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
@@ -26,6 +27,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,18 +61,16 @@ import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatAndModelManagerScreen(backStack: SnapshotStateList<Any>) {
+fun ChatAndModelManagerScreen(backStack: SnapshotStateList<Any>,viewModel: ChatAndModelManagerViewModel = hiltViewModel()) {
 
     val context = LocalContext.current
 
-    val viewModel: ChatAndModelManagerViewModel = hiltViewModel()
-    val status by viewModel.status.collectAsState()
     val llmModels by viewModel.llmModels.collectAsStateWithLifecycle()
 
-    var showUnSupportedFileDialog by remember { mutableStateOf(false) }
     var showConfigurationDialog by remember { mutableStateOf<Pair<LlmModel?, Uri?>>(null to null) }
     var modelImportProgress by remember { mutableFloatStateOf(0f) }
-
+    var deletableModel by remember { mutableStateOf<LlmModel?>(null) }
+    var error by remember { mutableStateOf<Pair<String?, String>>(null to "") }
 
     val modelPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK){
@@ -79,10 +79,10 @@ fun ChatAndModelManagerScreen(backStack: SnapshotStateList<Any>) {
                 val nameAndSize = context.getFileNameAndSize(uri = uri)
                 if (fileName != null && !fileName.endsWith(".task") && !fileName.endsWith(".litertlm") ){
                     // unsupported file
-                    showUnSupportedFileDialog = true
+                    error = "Unsupported file type" to "$fileName is not supported. Only .task and .litertlm files are supported."
                 }else if(fileName==null || nameAndSize.second == 0L || fileName.lowercase().contains("-web")){
                     // unsupported file
-                    showUnSupportedFileDialog = true
+                    error = "Unsupported file type" to "$fileName is not supported. Only .task and .litertlm files are supported."
                 }else{
                     //import model
                     val model = LlmModel(
@@ -116,9 +116,6 @@ fun ChatAndModelManagerScreen(backStack: SnapshotStateList<Any>) {
         }
     }
 
-
-
-
     Scaffold(
         topBar = {
             TopBar(title = "Ai Chat") {
@@ -149,23 +146,6 @@ fun ChatAndModelManagerScreen(backStack: SnapshotStateList<Any>) {
         }
     ) { innerPadding->
 
-
-        if (showUnSupportedFileDialog){
-            AlertDialog(
-                onDismissRequest = { showUnSupportedFileDialog=false },
-                text = {
-                    Text("Select a LiteRT-LM model")
-                },
-                title = {
-                    Text("Unsupported file type")
-                },
-                confirmButton = {
-                    Button(onClick = { showUnSupportedFileDialog=false }) {
-                        Text("Ok")
-                    }
-                }
-            )
-        }
         if (modelImportProgress>0f){
             Dialog(
                 onDismissRequest = {
@@ -175,7 +155,7 @@ fun ChatAndModelManagerScreen(backStack: SnapshotStateList<Any>) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(10.dp)
+                        .padding(20.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(color = MaterialTheme.colorScheme.surface)
                         .padding(10.dp)
@@ -185,15 +165,46 @@ fun ChatAndModelManagerScreen(backStack: SnapshotStateList<Any>) {
                     Text("Importing Model")
                     LinearProgressIndicator(
                         progress = { modelImportProgress },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().height(10.dp)
                     )
                 }
             }
+        }
+        deletableModel?.let { model ->
+            AlertDialog(
+                onDismissRequest = { deletableModel = null },
+                title = {
+                    Text("Delete ${model.name}")
+                },
+                text = {
+                    Text("Are you sure you want to delete ${model.name}?")
+                },
+                confirmButton = {
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.deleteModel(model)
+                            deletableModel = null
+                        }
+                    ) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = {
+                            deletableModel = null
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
 
         showConfigurationDialog.first?.let { model ->
             LlmModelConfigurationDialog(
                 model = model,
+                confirmButtonText = if (showConfigurationDialog.second==null) "Update" else "Import",
                 onDismiss = { showConfigurationDialog = null to null }
             ) { updatedModel ->
                 Log.d("Importing File", "File picked : $updatedModel")
@@ -215,18 +226,42 @@ fun ChatAndModelManagerScreen(backStack: SnapshotStateList<Any>) {
                         onProgress = { value ->
                             modelImportProgress = value
                         },
-                        onError = { error->
+                        onError = { err->
                             modelImportProgress = 0f
                             showConfigurationDialog = null to null
-                            Log.d("Importing File", "File Error : $error")
+                            error = "Error Configuration" to err
+                            Log.d("Importing File", "File Error : $err")
                         }
                     )
                 }else{
-                    viewModel.updateModel(model = model)
+                    viewModel.updateModel(model = updatedModel)
+                    showConfigurationDialog = null to null
                 }
 
             }
         }
+
+        if (error.second.isNotBlank() && error.second.isNotEmpty()){
+            AlertDialog(
+                onDismissRequest = { error = null to "" },
+                title = {
+                    Text(error.first?:"Error")
+                },
+                text = {
+                    Text(error.second)
+                },
+                confirmButton = {
+                    OutlinedButton(
+                        onClick = {
+                            error = null to ""
+                        }
+                    ) {
+                        Text("OK")
+                    }
+                },
+            )
+        }
+
 
         if (llmModels.isEmpty()){
             Column(
@@ -252,7 +287,14 @@ fun ChatAndModelManagerScreen(backStack: SnapshotStateList<Any>) {
                 items(llmModels, key = {
                     it.id
                 }){llmModel->
-                    LlmModelItemUi(model = llmModel){
+                    LlmModelItemUi(model = llmModel,
+                        onDelete = { model ->
+                            deletableModel = model
+                        },
+                        onConfigClick = { model ->
+                            showConfigurationDialog = model to null
+                        }
+                        ){
                         backStack.add(NavigationEntry.AiChat(llmModel.id))
                     }
                 }
@@ -269,6 +311,8 @@ fun ChatAndModelManagerScreen(backStack: SnapshotStateList<Any>) {
 fun LlmModelItemUi(
     modifier: Modifier = Modifier,
     model: LlmModel,
+    onDelete:(LlmModel)-> Unit,
+    onConfigClick:(LlmModel)-> Unit,
     onClick:(LlmModel)-> Unit
 ) {
     val fileSIze = model.sizeInBytes/1e+6
@@ -303,7 +347,9 @@ fun LlmModelItemUi(
             ) {
                 Button(
                     modifier = Modifier.weight(1f),
-                    onClick = {}
+                    onClick = {
+                        onDelete(model)
+                    }
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -316,7 +362,7 @@ fun LlmModelItemUi(
                 Button(
                     modifier = Modifier.weight(1f),
                     onClick = {
-
+                        onConfigClick(model)
                     }
                 ) {
                     Row(
@@ -352,7 +398,9 @@ fun LlmModelItemUiPreview(modifier: Modifier = Modifier) {
                 topP = ModelConfigs.DEFAULT_TOP_P,
                 temperature = ModelConfigs.DEFAULT_TEMPERATURE,
                 createdAt = 170000
-            )
+            ),
+            onDelete = {_->},
+            onConfigClick = {}
         ){}
     }
     

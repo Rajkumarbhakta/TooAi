@@ -40,10 +40,15 @@ class ChatAndModelManagerRepository @Inject constructor(
             if (!importDir.exists()) {
                 importDir.mkdir()
             }
-            val outputFile =
-                File(context.getExternalFilesDir(null), "${ModelConfigs.IMPORT_DIR}/$fileName")
+            val outputFile = File(context.getExternalFilesDir(null), "${ModelConfigs.IMPORT_DIR}/$fileName")
             Log.d("Importing File", "importing model to ${outputFile.absolutePath}")
             Log.d("Importing File", "importing model to ${importDir.absolutePath}")
+
+            if (outputFile.exists()){
+                onError("File already exists")
+                return@launch
+            }
+
             val outputStream = FileOutputStream(outputFile)
             val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
             var bytesRead: Int
@@ -93,6 +98,21 @@ class ChatAndModelManagerRepository @Inject constructor(
             e.printStackTrace()
         }
     }
+
+    suspend fun deleteModel(model: LlmModel){
+        try {
+            val path = model.path
+            val file = File(path)
+            if (file.exists()) {
+                file.delete()
+            }
+            llmModelDao.deleteLlmModel(model)
+        }catch (e: Exception){
+            Log.e("Importing File","Failed to delete from database",e)
+        }
+    }
+
+
 
 
 }

@@ -33,8 +33,10 @@ import com.rkbapps.tooai.utils.roundTo2Decimals
 @Composable
 fun LlmModelConfigurationDialog(
     modifier: Modifier = Modifier,
+    confirmButtonText:String,
     onDismiss: () -> Unit,
-    model: LlmModel, onDone: (LlmModel) -> Unit,
+    model: LlmModel,
+    onDone: (LlmModel) -> Unit,
 ) {
     var llmModelUpdated by remember { mutableStateOf(model) }
 
@@ -117,7 +119,7 @@ fun LlmModelConfigurationDialog(
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Import")
+                        Text(confirmButtonText)
                     }
                 }
             }
@@ -148,6 +150,7 @@ fun LlmModelConfigurationDialogPreview(modifier: Modifier = Modifier) {
                 temperature = ModelConfigs.DEFAULT_TEMPERATURE,
                 createdAt = 170000
             ),
+            confirmButtonText = "Done",
             onDismiss = {}
         ) { }
     }
