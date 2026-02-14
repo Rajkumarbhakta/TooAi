@@ -10,8 +10,8 @@ junitVersion = "1.2.1"
 espressoCore = "3.6.1"
 lifecycleRuntimeKtx = "2.9.2"
 activityCompose = "1.10.1"
-composeBom = "2025.07.00"
-lottieComposeVersion = "6.6.7"
+composeBom = "2026.02.00"
+lottieComposeVersion = "6.7.1"
 playServicesCodeScanner = "16.1.0"
 
 room = "2.7.2"
@@ -27,11 +27,13 @@ liteRtLm = "0.8.0"
 
 coroutine = "1.10.2"
 
+richtext = "1.0.0-alpha03"
+
 #
-nav3Core = "1.0.0-alpha01"
+nav3Core = "1.0.1"
 nav3Material = "1.0.0-SNAPSHOT"
-nav3Lifecycle = "1.0.0-SNAPSHOT"
-kotlinxSerializationCore = "1.8.1"
+nav3Lifecycle = "2.10.0"
+kotlinxSerializationCore = "1.10.0"
 
 [libraries]
 android-lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "lottieComposeVersion" }
@@ -67,6 +69,10 @@ text-recognition = { module = "com.google.mlkit:text-recognition", version.ref =
 text-recognition-devanagari = { module = "com.google.mlkit:text-recognition-devanagari", version.ref = "textRecognition" }
 
 litertlm-android = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "liteRtLm" }
+
+
+commonmark = { group = "com.halilibo.compose-richtext", name = "richtext-commonmark", version.ref = "richtext" }
+richtext = { group = "com.halilibo.compose-richtext", name = "richtext-ui-material3", version.ref = "richtext" }
 
 #coroutine
 coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services",version.ref = "coroutine" }

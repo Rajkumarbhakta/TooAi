@@ -90,6 +90,10 @@ dependencies {
     //LiteRt
     implementation(libs.litertlm.android)
 
+    //markdown
+    implementation(libs.commonmark)
+    implementation(libs.richtext)
+
     //coroutine
     implementation(libs.coroutines.play.services)
     implementation(libs.coroutines.guava)

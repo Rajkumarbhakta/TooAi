@@ -9,6 +9,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import com.google.ai.edge.litertlm.ExperimentalApi
+import com.google.ai.edge.litertlm.ExperimentalFlags
 import com.rkbapps.tooai.navigation.NavManager
 import com.rkbapps.tooai.navigation.NavigationEntry
 import com.rkbapps.tooai.ui.theme.TooAiTheme
@@ -29,5 +31,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        @OptIn(ExperimentalApi::class)
+        ExperimentalFlags.enableBenchmark = true
     }
 }
