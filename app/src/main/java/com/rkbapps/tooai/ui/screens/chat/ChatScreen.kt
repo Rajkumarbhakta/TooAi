@@ -40,8 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.halilibo.richtext.commonmark.Markdown
-import com.halilibo.richtext.ui.CodeBlockStyle
-import com.halilibo.richtext.ui.RichTextStyle
 import com.halilibo.richtext.ui.material3.RichText
 import com.rkbapps.tooai.R
 import com.rkbapps.tooai.ui.composabels.TopBar
@@ -243,8 +241,8 @@ fun ChatMessageItem(
         AnimatedVisibility(
             visible = isStatsVisible
         ) {
-            Card() {
-                Row() {
+            Card{
+                Row {
                     if (message.statistics?.timeToFirstToken!=null){
                         StatsItem(
                             title = "1st token",
