@@ -37,7 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.halilibo.richtext.commonmark.Markdown
 import com.halilibo.richtext.ui.material3.RichText
@@ -116,7 +116,6 @@ fun ChatScreen(
                 onValueChange = { messageText = it },
                 placeholder = { Text("Type a message") },
                 shape = RoundedCornerShape(100.dp),
-
                 trailingIcon = {
                 when{
                     state.modelInitializingStatus.isLoading && state.instance == null ->{

@@ -38,6 +38,7 @@ import com.rkbapps.tooai.models.imageSegmentation
 import com.rkbapps.tooai.models.qrScanner
 import com.rkbapps.tooai.models.textRecognition
 import com.rkbapps.tooai.navigation.NavigationEntry
+import com.rkbapps.tooai.ui.composabels.TopBar
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,12 +48,8 @@ fun HomeScreen(backStack: SnapshotStateList<Any>) {
     val composition = rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.animation))
 
     Scaffold(topBar = {
-        TopAppBar(
-            title = { Text(text = stringResource(id = R.string.app_name)) },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                titleContentColor = MaterialTheme.colorScheme.onPrimary
-            )
+        TopBar(
+            stringResource(id = R.string.app_name)
         )
     }) { paddingValues ->
 

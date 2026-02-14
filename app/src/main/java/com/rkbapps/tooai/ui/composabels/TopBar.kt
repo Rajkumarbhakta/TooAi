@@ -1,6 +1,5 @@
 package com.rkbapps.tooai.ui.composabels
 
-
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -16,7 +15,7 @@ import com.rkbapps.tooai.R
 @Composable
 fun TopBar(
     title: String,
-    onNavigationIconClick: () -> Unit
+    onNavigationIconClick: (() -> Unit)? = null
 ) {
     TopAppBar(
         title = { Text(text = title) },
@@ -25,12 +24,14 @@ fun TopBar(
             titleContentColor = MaterialTheme.colorScheme.onPrimary
         ),
         navigationIcon = {
-            IconButton(onClick = { onNavigationIconClick() }) {
-                Icon(
-                    painter = painterResource(R.drawable.arrow_back),
-                    contentDescription = "navigation up",
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
+            onNavigationIconClick?.let {
+                IconButton(onClick = { onNavigationIconClick.invoke() }) {
+                    Icon(
+                        painter = painterResource(R.drawable.arrow_back),
+                        contentDescription = "navigation up",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
             }
         }
     )

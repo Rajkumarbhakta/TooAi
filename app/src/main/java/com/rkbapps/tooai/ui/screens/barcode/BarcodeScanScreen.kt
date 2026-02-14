@@ -43,7 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
@@ -53,7 +53,8 @@ import com.rkbapps.tooai.ui.composabels.TopBar
 import java.util.Locale
 
 @Composable
-fun BarcodeScanScreen(backStack: SnapshotStateList<Any>,viewModel: BarcodeViewModel = hiltViewModel()) {
+fun BarcodeScanScreen(backStack: SnapshotStateList<Any>,
+                      viewModel: BarcodeViewModel = hiltViewModel()) {
     val context = LocalContext.current
 
     val barcodeResult = remember {

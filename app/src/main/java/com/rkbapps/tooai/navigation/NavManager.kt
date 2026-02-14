@@ -41,10 +41,10 @@ fun NavManager(
                     slideOutHorizontally(targetOffsetX = { it })
         },
         entryProvider = entryProvider {
-
             entry<NavigationEntry.Home> {
                 HomeScreen(backStack)
             }
+
             entry<NavigationEntry.BarcodeScan> {
                 BarcodeScanScreen(backStack)
             }
@@ -60,20 +60,17 @@ fun NavManager(
             entry<NavigationEntry.TextRecognization> {
                 TextReorganizationScreen(backStack)
             }
+
             entry<NavigationEntry.ChatAndModelManagement> {
                 ChatAndModelManagerScreen(backStack)
             }
+
             entry<NavigationEntry.AiChat>{
                 val modelId = it.modelId
-                ChatScreen(
-                    backStack = backStack,
-                    modelId = modelId
-                )
+                ChatScreen(backStack = backStack, modelId = modelId)
             }
 
 
         }
     )
-
-
 }
