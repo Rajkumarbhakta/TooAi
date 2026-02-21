@@ -26,6 +26,12 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    fun loadSession(sessionId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.loadSession(sessionId)
+        }
+    }
+
     fun sendMessage(message: String) {
         viewModelScope.launch {
             repository.sendMessage(message)

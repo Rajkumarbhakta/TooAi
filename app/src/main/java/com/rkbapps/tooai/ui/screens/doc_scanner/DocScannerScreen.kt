@@ -87,7 +87,7 @@ fun DocScannerScreen(backStack: SnapshotStateList<Any>,viewModel: DocumentScanne
     LaunchedEffect(docSavingState.error) {
         if (docSavingState.error != null) {
             withContext(Dispatchers.Main){
-                Toast.makeText(context, docSavingState.error, Toast.LENGTH_SHORT)
+                Toast.makeText(context, docSavingState.error, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -112,7 +112,7 @@ fun DocScannerScreen(backStack: SnapshotStateList<Any>,viewModel: DocumentScanne
                                 scannerLauncher.launch(intentSenderRequest)
                             },
                             onScanError = {error->
-                                Toast.makeText(context,error.localizedMessage,Toast.LENGTH_SHORT)
+                                Toast.makeText(context,error.localizedMessage,Toast.LENGTH_SHORT).show()
                             }
                         )
                     }
@@ -278,7 +278,7 @@ fun DocScannerScreen(backStack: SnapshotStateList<Any>,viewModel: DocumentScanne
                                     scannerLauncher.launch(intentSenderRequest)
                                 },
                                 onScanError = {error->
-                                    Toast.makeText(context,error.localizedMessage,Toast.LENGTH_SHORT)
+                                    Toast.makeText(context,error.localizedMessage,Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }
@@ -370,18 +370,23 @@ private fun handelScanActivityResult(
     context: Context,
     onResult:(GmsDocumentScanningResult?)-> Unit
 ) {
-    val resultCode = activityResult.resultCode
-    val result = GmsDocumentScanningResult.fromActivityResultIntent(activityResult.data)
-    when (resultCode) {
-        Activity.RESULT_OK if result != null -> {
-            onResult(result)
+    try {
+        val resultCode = activityResult.resultCode
+        val result = GmsDocumentScanningResult.fromActivityResultIntent(activityResult.data)
+        when (resultCode) {
+            Activity.RESULT_OK if result != null -> {
+                onResult(result)
+            }
+            Activity.RESULT_CANCELED -> {
+                //Toast.makeText(context, "Canceled by user.", Toast.LENGTH_SHORT).show()
+            }
+            else -> {
+                Toast.makeText(context, "Failed to scan.", Toast.LENGTH_SHORT).show()
+            }
         }
-        Activity.RESULT_CANCELED -> {
-            //Toast.makeText(context, "Canceled by user.", Toast.LENGTH_SHORT).show()
-        }
-        else -> {
-            Toast.makeText(context, "Failed to scan.", Toast.LENGTH_SHORT).show()
-        }
+    }catch (e: Exception){
+        Log.e("Scan Error",e.localizedMessage ?: "",e)
+        Toast.makeText(context, "Failed to scan.", Toast.LENGTH_SHORT).show()
     }
 }
 

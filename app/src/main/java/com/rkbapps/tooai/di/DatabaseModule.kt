@@ -24,7 +24,7 @@ object DatabaseModule {
             context.applicationContext,
             Database::class.java,
             "app_database"
-        ).addMigrations(Database.MIGRATION_1_2).build()
+        ).addMigrations(Database.MIGRATION_1_2, Database.MIGRATION_2_3).build()
     }
 
     @Provides
@@ -47,6 +47,9 @@ object DatabaseModule {
     @Provides
     fun provideLlmModelDao(database: Database) = database.llmModelDao()
 
+    @Singleton
+    @Provides
+    fun provideChatDao(database: Database) = database.chatDao()
 
     
 }

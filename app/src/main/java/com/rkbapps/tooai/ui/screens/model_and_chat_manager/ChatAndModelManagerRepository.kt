@@ -3,6 +3,7 @@ package com.rkbapps.tooai.ui.screens.model_and_chat_manager
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.rkbapps.tooai.db.dao.ChatDao
 import com.rkbapps.tooai.db.dao.LlmModelDao
 import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.utils.ModelConfigs
@@ -16,10 +17,12 @@ import java.nio.charset.StandardCharsets
 import javax.inject.Inject
 
 class ChatAndModelManagerRepository @Inject constructor(
-    private val llmModelDao: LlmModelDao
+    private val llmModelDao: LlmModelDao,
+    private val chatDao: ChatDao
 ) {
 
     val llmModels = llmModelDao.getAllLlmModels()
+    val chatSessions = chatDao.getAllSessions()
 
 
     fun importModel(

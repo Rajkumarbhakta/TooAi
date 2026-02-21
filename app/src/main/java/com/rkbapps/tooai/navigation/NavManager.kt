@@ -66,8 +66,8 @@ fun NavManager(
             }
 
             entry<NavigationEntry.AiChat>{
-                val modelId = it.modelId
-                ChatScreen(backStack = backStack, modelId = modelId)
+                val id = it.id
+                ChatScreen(backStack = backStack, id = id, type = it.type)
             }
 
 

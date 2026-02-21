@@ -42,20 +42,26 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.halilibo.richtext.commonmark.Markdown
 import com.halilibo.richtext.ui.material3.RichText
 import com.rkbapps.tooai.R
+import com.rkbapps.tooai.navigation.IdType
 import com.rkbapps.tooai.ui.composabels.TopBar
 import com.rkbapps.tooai.utils.roundTo2Decimals
 
 @Composable
 fun ChatScreen(
     backStack: SnapshotStateList<Any>,
-    modelId:Long,
+    id: String,
+    type: IdType,
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val state by viewModel.chatState.collectAsStateWithLifecycle()
     var messageText by remember { mutableStateOf("") }
 
-    LaunchedEffect(modelId) {
-        viewModel.initializeModel(modelId)
+    LaunchedEffect(id) {
+        if(type== IdType.MODEL){
+            viewModel.initializeModel(id.toLong())
+        }else{
+            viewModel.loadSession(id)
+        }
     }
 
     Scaffold(

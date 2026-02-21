@@ -11,13 +11,15 @@ data class ChatState(
     val instance: LlmModelInstance? = null,
     val modelInitializingStatus: UiState<Boolean> = UiState(),
     val isChatRunning: Boolean = false,
-    val messages: List<ChatMessage> = emptyList()
+    val isResponding: Boolean = false,
+    val messages: List<ChatMessage> = emptyList(),
+    val sessionId: String? = null
 )
 
 data class LlmModelInstance(val engine: Engine, var conversation: Conversation)
 
 data class ChatMessage(
-    val id: UUID = UUID.randomUUID(),
+    val id: String = UUID.randomUUID().toString(),
     val message: String,
     val type: ChatType,
     val timestamp: Long = System.currentTimeMillis(),

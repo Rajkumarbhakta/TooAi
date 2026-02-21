@@ -27,6 +27,12 @@ class ChatAndModelManagerViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
+    val chatSessions = repository.chatSessions.stateIn(
+        viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
 
     fun importModel(
         context: Context,
