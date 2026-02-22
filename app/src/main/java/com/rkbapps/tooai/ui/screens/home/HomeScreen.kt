@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +37,7 @@ import com.rkbapps.tooai.R
 import com.rkbapps.tooai.models.MenuItem
 import com.rkbapps.tooai.models.docScanner
 import com.rkbapps.tooai.models.imageSegmentation
+import com.rkbapps.tooai.models.menuItems
 import com.rkbapps.tooai.models.qrScanner
 import com.rkbapps.tooai.models.textRecognition
 import com.rkbapps.tooai.navigation.NavigationEntry
@@ -56,14 +59,17 @@ fun HomeScreen(backStack: SnapshotStateList<Any>) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
+            ,
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
 
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(vertical = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
                 LottieAnimation(
@@ -72,26 +78,10 @@ fun HomeScreen(backStack: SnapshotStateList<Any>) {
                 )
             }
 
-            MenuRows(item1 = {
-                MenuItems(manuItem = docScanner) {
-                    backStack.add(NavigationEntry.DocScanner)
+            menuItems.forEach {  item ->
+                MenuItems(manuItem = item) {
+                    backStack.add(item.navigationEntry)
                 }
-            }, item2 = {
-                MenuItems(manuItem = qrScanner) {
-                    backStack.add(NavigationEntry.BarcodeScan)
-                }
-            })
-            MenuRows(item1 = {
-                MenuItems(manuItem = imageSegmentation) {
-                    backStack.add(NavigationEntry.ImageSegmentation)
-                }
-            }, item2 = {
-                MenuItems(manuItem = textRecognition) {
-                    backStack.add(NavigationEntry.TextRecognization)
-                }
-            })
-            MenuItems(manuItem = textRecognition) {
-                backStack.add(NavigationEntry.ChatAndModelManagement)
             }
 
             Box(
@@ -112,43 +102,36 @@ fun HomeScreen(backStack: SnapshotStateList<Any>) {
 
 @Composable
 fun MenuItems(manuItem: MenuItem, onItemClick: () -> Unit) {
-    OutlinedCard(
-        onClick = {
-            onItemClick()
-        }, modifier = Modifier
-            .fillMaxWidth()
-            .height(150.dp)
-            .padding(4.dp)
+    Card(
+        onClick = onItemClick, modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Icon(
                 painter = painterResource(id = manuItem.icon),
                 contentDescription = manuItem.title,
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier
-                    .height(30.dp)
-                    .width(30.dp)
+                modifier = Modifier.size(30.dp)
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = manuItem.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = manuItem.subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center
-            )
+            Column(
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = manuItem.title,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = manuItem.subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
+
+
     }
 }
 

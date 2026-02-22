@@ -48,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -423,6 +424,8 @@ fun ModelList(
     onConfigClick: (LlmModel) -> Unit,
     onModelItemClick: (LlmModel) -> Unit
 ) {
+    val uriHandler = LocalUriHandler.current
+
     if (models.isEmpty()) {
         Column(
             modifier = modifier
@@ -434,6 +437,13 @@ fun ModelList(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text("No LLM model added")
+            OutlinedButton(
+                onClick = {
+                    uriHandler.openUri("https://huggingface.co/litert-community/models")
+                }
+            ) {
+                Text("Download a model")
+            }
         }
     } else {
         LazyColumn(
@@ -472,13 +482,10 @@ fun ChatList(
         Column(
             modifier = modifier
                 .fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(
-                10.dp,
-                alignment = Alignment.CenterVertically
-            ),
+            verticalArrangement = Arrangement.spacedBy(10.dp, alignment = Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("No Chat found")
+            Text("No Chat found, select a model to start a chat")
         }
     } else {
         LazyColumn(
