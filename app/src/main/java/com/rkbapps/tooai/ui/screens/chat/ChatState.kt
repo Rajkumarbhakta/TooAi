@@ -13,10 +13,10 @@ data class ChatState(
     val isChatRunning: Boolean = false,
     val isResponding: Boolean = false,
     val messages: List<ChatMessage> = emptyList(),
-    val sessionId: String? = null
+    val sessionId: String? = null,
 )
 
-data class LlmModelInstance(val engine: Engine, var conversation: Conversation)
+data class LlmModelInstance(val engine: Engine, val conversation: Conversation)
 
 data class ChatMessage(
     val id: String = UUID.randomUUID().toString(),
@@ -32,7 +32,8 @@ data class ChatStatistics(
     val timeToFirstToken: Float? = null,
     val prefillSpeed: Float? = null,
     val decodeSpeed: Float? = null,
-    val totalLatency: Float? = null
+    val totalLatency: Float? = null,
+    val tokenUsed: Int? = null
 )
 
 
