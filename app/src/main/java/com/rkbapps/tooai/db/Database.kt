@@ -16,7 +16,7 @@ import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.db.entity.QrScan
 import com.rkbapps.tooai.db.entity.RecognizedText
 
-@Database(entities = [QrScan::class, RecognizedText::class, DocumentScans::class, LlmModel::class, ChatSession::class, ChatMessage::class], version = 3, exportSchema = false)
+@Database(entities = [QrScan::class, RecognizedText::class, DocumentScans::class, LlmModel::class, ChatSession::class, ChatMessage::class], version = 4, exportSchema = false)
 abstract class Database : RoomDatabase() {
     abstract fun qrScanDao(): QrScanDao
     abstract fun recognizedTextDao(): RecognizedTextDao
@@ -40,6 +40,13 @@ abstract class Database : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE TABLE IF NOT EXISTS `chat_sessions` (`id` TEXT NOT NULL, `modelId` INTEGER NOT NULL, `title` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))")
                 db.execSQL("CREATE TABLE IF NOT EXISTS `chat_messages` (`id` TEXT NOT NULL, `sessionId` TEXT NOT NULL, `sender` TEXT NOT NULL, `content` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `timeToFirstToken` REAL, `prefillSpeed` REAL, `decodeSpeed` REAL, `totalLatency` REAL, `isError` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`sessionId`) REFERENCES `chat_sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            }
+        }
+
+        val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add tokenUsed column to chat_messages table
+                db.execSQL("ALTER TABLE `chat_messages` ADD COLUMN `tokenUsed` INTEGER")
             }
         }
     }

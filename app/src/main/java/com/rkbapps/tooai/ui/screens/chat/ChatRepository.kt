@@ -2,7 +2,6 @@ package com.rkbapps.tooai.ui.screens.chat
 
 import android.util.Log
 import com.google.ai.edge.litertlm.Backend
-import com.google.ai.edge.litertlm.BenchmarkInfo
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
@@ -34,7 +33,6 @@ class ChatRepository @Inject constructor(
 
     private val _chatState = MutableStateFlow(ChatState())
     val chatState = _chatState.asStateFlow()
-
 
     val llmModels = llmModelDao.getAllLlmModels()
 
@@ -168,7 +166,8 @@ class ChatRepository @Inject constructor(
                         timeToFirstToken = entity.timeToFirstToken,
                         prefillSpeed = entity.prefillSpeed,
                         decodeSpeed = entity.decodeSpeed,
-                        totalLatency = entity.totalLatency
+                        totalLatency = entity.totalLatency,
+                        tokenUsed = entity.tokenUsed
                     )
                 )
             }
@@ -437,7 +436,8 @@ class ChatRepository @Inject constructor(
                 timeToFirstToken = chatMessage.statistics?.timeToFirstToken,
                 prefillSpeed = chatMessage.statistics?.prefillSpeed,
                 decodeSpeed = chatMessage.statistics?.decodeSpeed,
-                totalLatency = chatMessage.statistics?.totalLatency
+                totalLatency = chatMessage.statistics?.totalLatency,
+                tokenUsed = chatMessage.statistics?.tokenUsed
             )
             chatDao.insertMessage(entity)
         }
@@ -457,13 +457,13 @@ class ChatRepository @Inject constructor(
             prefillSpeed = chatMessage.statistics?.prefillSpeed,
             decodeSpeed = chatMessage.statistics?.decodeSpeed,
             totalLatency = chatMessage.statistics?.totalLatency,
+            tokenUsed = chatMessage.statistics?.tokenUsed,
             isError = isError
         )
         chatDao.updateMessage(entity)
     }
 
 
-    @Suppress("UNUSED_PARAMETER")
     private fun calculateStatistics(
         start: Long,
         firstTokenTs: Long,
@@ -494,6 +494,8 @@ class ChatRepository @Inject constructor(
             totalLatency = totalLatency
         )
     }
+
+
 
     fun getSystemPrompt(): String {
         @SuppressWarnings("JavaTimeDefaultTimeZone")

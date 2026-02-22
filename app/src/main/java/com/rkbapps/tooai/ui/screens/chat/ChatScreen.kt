@@ -102,9 +102,6 @@ fun ChatScreen(
         }
     ) {innerPadding->
 
-
-
-
         // Bottom Sheet for model selection
         if (showModelSheet) {
             ModalBottomSheet(
@@ -146,12 +143,6 @@ fun ChatScreen(
             }
         }
 
-
-
-
-
-
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -163,9 +154,12 @@ fun ChatScreen(
             }
 
             LazyColumn(
-                modifier = Modifier.weight(1f).padding(8.dp),
+                modifier = Modifier.weight(1f).padding(bottom = 8.dp),
                 reverseLayout = true
             ) {
+                item {
+                    Spacer(modifier = Modifier.size(8.dp))
+                }
                 items(
                     state.messages.reversed(),
                     key = { it.id }
@@ -324,6 +318,14 @@ fun ChatMessageItem(
         ) {
             Card{
                 Row {
+                    if (message.statistics?.tokenUsed!=null){
+                        StatsItem(
+                            title = "Token\nused",
+                            value = message.statistics.tokenUsed.toString(),
+                            unit = ""
+                        )
+                    }
+
                     if (message.statistics?.timeToFirstToken!=null){
                         StatsItem(
                             title = "1st token",

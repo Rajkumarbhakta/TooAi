@@ -27,5 +27,6 @@ data class ChatMessage(
     val prefillSpeed: Float? = null,
     val decodeSpeed: Float? = null,
     val totalLatency: Float? = null,
+    val tokenUsed: Int? = null,
     val isError: Boolean = false
 )
