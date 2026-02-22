@@ -1,5 +1,6 @@
 package com.rkbapps.tooai.ui.screens.chat
 
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
@@ -42,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -51,6 +53,7 @@ import com.halilibo.richtext.commonmark.Markdown
 import com.halilibo.richtext.ui.material3.RichText
 import com.rkbapps.tooai.R
 import com.rkbapps.tooai.ui.composabels.TopBar
+import com.rkbapps.tooai.utils.copyText
 import com.rkbapps.tooai.utils.roundTo2Decimals
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -243,6 +246,7 @@ fun ChatMessageItem(
     alignment: Alignment.Horizontal,
     color: Color,
 ) {
+    val context = LocalContext.current
     var isStatsVisible by remember { mutableStateOf(false) }
     var isExpanded by remember { mutableStateOf(false) }
     
@@ -303,13 +307,20 @@ fun ChatMessageItem(
                 ChatActionButtons(
                     icon = R.drawable.content_copy,
                     title = "Copy"
-                ) { }
+                ) {
+                    context.copyText(message.message)
+                }
                 //share button
                 ChatActionButtons(
                     icon = R.drawable.share,
                     title = "Share"
                 ){
-
+                    Intent(Intent.ACTION_SEND).apply {
+                        putExtra(Intent.EXTRA_TEXT, message.message)
+                        type = "text/plain"
+                    }.also {
+                        context.startActivity(it)
+                    }
                 }
             }
         }
