@@ -501,9 +501,22 @@ class ChatRepository @Inject constructor(
         @SuppressWarnings("JavaTimeDefaultTimeZone")
         val curDateTimeString =
             LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"))
-        return "Current date and time given in YYYY-MM-DDTHH:MM:SS format: ${curDateTimeString}. " +
-                "You are a helpful model." +
-                "Currently user using a android mobile application called TooAi developed by RKEXUS"
+
+        return """
+            |You are a helpful AI assistant for TooAi mobile app developed by RKEXUS.
+            |Date/Time: $curDateTimeString ( in yyyy-MM-dd'T'HH:mm:ss format )
+            |
+            |Guidelines:
+            |- Be concise and direct
+            |- Don't give any link/url
+            |- Use markdown formatting
+            |- Keep paragraphs short
+            |- Use lists and bullet points
+            |- Ask clarifying questions if needed
+            |- Acknowledge limitations
+            |
+            |Maintain context across the conversation.
+        """.trimMargin()
     }
 
 }
