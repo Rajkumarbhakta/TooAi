@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Log
 import com.rkbapps.tooai.db.dao.ChatDao
 import com.rkbapps.tooai.db.dao.LlmModelDao
+import com.rkbapps.tooai.db.entity.ChatSession
 import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.utils.ModelConfigs
 import kotlinx.coroutines.CoroutineScope
@@ -112,6 +113,24 @@ class ChatAndModelManagerRepository @Inject constructor(
             llmModelDao.deleteLlmModel(model)
         }catch (e: Exception){
             Log.e("Importing File","Failed to delete from database",e)
+        }
+    }
+
+    suspend fun deleteChatSeason(chatSeason: ChatSession){
+        try {
+            chatDao.deleteSession(chatSeason.id)
+        }catch (e: Exception){
+            Log.e("Deleting chat","Failed to delete from database",e)
+        }
+    }
+
+    suspend fun updateChatSeason(chatSeason: ChatSession){
+        try {
+            chatDao.updateSession(chatSeason.copy(
+                updatedAt = System.currentTimeMillis()
+            ))
+        }catch (e: Exception){
+            Log.e("Updating chat","Failed to update in database",e)
         }
     }
 

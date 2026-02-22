@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rkbapps.tooai.db.entity.ChatSession
 import com.rkbapps.tooai.db.entity.LlmModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -18,7 +19,6 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class ChatAndModelManagerViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val repository: ChatAndModelManagerRepository,
 ) : ViewModel() {
     val llmModels = repository.llmModels.stateIn(
@@ -72,5 +72,20 @@ class ChatAndModelManagerViewModel @Inject constructor(
             repository.deleteModel(model = model)
         }
     }
+
+    fun deleteChat(chatSeason: ChatSession){
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteChatSeason(chatSeason)
+        }
+    }
+
+    fun updateChat(chatSeason: ChatSession){
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.updateChatSeason(chatSeason)
+        }
+
+    }
+
+
 
 }

@@ -32,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -88,10 +89,14 @@ fun ChatAndModelManagerScreen(
     var showConfigurationDialog by remember { mutableStateOf<Pair<LlmModel?, Uri?>>(null to null) }
     var modelImportProgress by remember { mutableFloatStateOf(0f) }
     var deletableModel by remember { mutableStateOf<LlmModel?>(null) }
+
+    var deletableChat by remember { mutableStateOf<ChatSession?>(null) }
+    var updatableChat by remember { mutableStateOf<ChatSession?>(null) }
+
+
     var error by remember { mutableStateOf<Pair<String?, String>>(null to "") }
 
-    val modelPickerLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+    val modelPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
                 result.data?.data?.let { uri ->
                     val fileName = context.getFileName(uri = uri)
@@ -264,6 +269,77 @@ fun ChatAndModelManagerScreen(
             }
         }
 
+        deletableChat?.let { chat->
+            AlertDialog(
+                onDismissRequest = { deletableChat = null },
+                title = {
+                    Text("Delete ${chat.title}")
+                },
+                text = {
+                    Text("Are you sure you want to delete ${chat.title}?")
+                },
+                confirmButton = {
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.deleteChat(chat)
+                            deletableChat = null
+                        }
+                    ) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = {
+                            deletableChat = null
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        updatableChat?.let { chat->
+            var name by remember { mutableStateOf(chat.title) }
+            AlertDialog(
+                onDismissRequest = { updatableChat = null },
+                title = {
+                    Text("Change name")
+                },
+                text = {
+                    OutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Chat name") }
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (name.isNotBlank() && name.isNotEmpty()) {
+                                val chat = chat.copy(title = name)
+                                viewModel.updateChat(chat)
+                            }
+                            updatableChat = null
+                        }
+                    ) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = {
+                            updatableChat = null
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
         if (error.second.isNotBlank() && error.second.isNotEmpty()) {
             AlertDialog(
                 onDismissRequest = { error = null to "" },
@@ -307,13 +383,16 @@ fun ChatAndModelManagerScreen(
                 when (it) {
                     0 -> ChatList(
                         chats = chatSessions,
-                        onDelete = {},
-                        onConfigClick = {},
+                        onDelete = { chat->
+                            deletableChat = chat
+                        },
+                        onConfigClick = { chat->
+                            updatableChat = chat
+                        },
                         onChatItemClick = { chat ->
                             backStack.add(NavigationEntry.AiChat(id = chat.id, type = IdType.CHAT))
                         }
                     )
-
                     1 -> ModelList(
                         models = llmModels,
                         onDelete = { model ->
