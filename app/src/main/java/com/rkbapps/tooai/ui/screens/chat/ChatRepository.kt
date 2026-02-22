@@ -35,6 +35,9 @@ class ChatRepository @Inject constructor(
     private val _chatState = MutableStateFlow(ChatState())
     val chatState = _chatState.asStateFlow()
 
+
+    val llmModels = llmModelDao.getAllLlmModels()
+
     companion object {
         // Context management constants
         private const val CONTEXT_THRESHOLD_PERCENTAGE = 0.75f // Reduce context at 75% of max tokens
@@ -116,8 +119,10 @@ class ChatRepository @Inject constructor(
     }
 
     //for old chats
-    suspend fun loadSession(sessionId: String) {
+    suspend fun loadSession(sessionId: String,modelId: Long? = null) {
         _chatState.update { it.copy(modelInitializingStatus = UiState(isLoading = true)) }
+
+        modelId?.let { chatDao.updateSessionModel(sessionId,it) }
 
         val session = chatDao.getSessionById(sessionId)
         if (session == null) {

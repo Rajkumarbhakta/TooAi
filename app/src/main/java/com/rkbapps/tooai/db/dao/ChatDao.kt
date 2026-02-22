@@ -31,6 +31,9 @@ interface ChatDao {
     @Update
     suspend fun updateMessage(message: ChatMessage)
 
+    @Query("Update chat_sessions set modelId=:modelId where id = :sessionId")
+    suspend fun updateSessionModel(sessionId: String,modelId: Long)
+
     @Query("SELECT * FROM chat_messages WHERE sessionId = :sessionId ORDER BY timestamp ASC")
     fun getMessagesForSessionFlow(sessionId: String): Flow<List<ChatMessage>>
 

@@ -1,13 +1,20 @@
 package com.rkbapps.tooai.ui.screens.chat
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.serialization.saved
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
+import com.rkbapps.tooai.MainActivity
 import com.rkbapps.tooai.db.entity.LlmModel
+import com.rkbapps.tooai.navigation.IdType
 import com.rkbapps.tooai.navigation.NavigationEntry
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -17,8 +24,26 @@ class ChatViewModel @Inject constructor(
 ): ViewModel() {
     
     val chatState: StateFlow<ChatState> = repository.chatState
+    val llmModels = repository.llmModels.stateIn(
+        viewModelScope,
+        started = SharingStarted.Lazily,
+        initialValue = emptyList()
+    )
 
-
+    init {
+        val route = MainActivity.backStack.lastOrNull()
+        if (route!=null && route is NavigationEntry.AiChat){
+            val id = route.id
+            val type = route.type
+            if(type== IdType.MODEL){
+                initializeModel(id.toLong())
+            }else{
+                loadSession(id)
+            }
+        }else{
+            Log.d("ChatViewModel","No route found")
+        }
+    }
 
     fun initializeModel(llmModel: Long) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -26,9 +51,9 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun loadSession(sessionId: String) {
+    fun loadSession(sessionId: String,modelId: Long? = null) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.loadSession(sessionId)
+            repository.loadSession(sessionId,modelId)
         }
     }
 

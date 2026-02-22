@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.rkbapps.tooai.ui.screens.barcode.BarcodeScanScreen
@@ -66,8 +67,7 @@ fun NavManager(
             }
 
             entry<NavigationEntry.AiChat>{
-                val id = it.id
-                ChatScreen(backStack = backStack, id = id, type = it.type)
+                ChatScreen(backStack = backStack,)
             }
 
 

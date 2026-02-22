@@ -17,8 +17,15 @@ import com.rkbapps.tooai.navigation.NavigationEntry
 import com.rkbapps.tooai.ui.theme.TooAiTheme
 import dagger.hilt.android.AndroidEntryPoint
 
+
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    companion object{
+        val  backStack = mutableStateListOf<Any>(NavigationEntry.Home)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -27,7 +34,6 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val backStack = rememberSaveable { mutableStateListOf<Any>(NavigationEntry.Home) }
                     NavManager(backStack)
                 }
             }
