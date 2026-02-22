@@ -508,7 +508,7 @@ class ChatRepository @Inject constructor(
             |
             |Guidelines:
             |- Be concise and direct
-            |- Don't give any link/url
+            |- Don't give any link/url inside chat
             |- Use markdown formatting
             |- Keep paragraphs short
             |- Use lists and bullet points
