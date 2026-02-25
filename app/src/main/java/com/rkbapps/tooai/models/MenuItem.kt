@@ -1,5 +1,6 @@
 package com.rkbapps.tooai.models
 
+import android.os.Build
 import com.rkbapps.tooai.R
 import com.rkbapps.tooai.navigation.NavigationEntry
 
@@ -44,11 +45,22 @@ val aiChat = MenuItem(
     navigationEntry = NavigationEntry.ChatAndModelManagement
 )
 
-val menuItems = listOf(
-    aiChat,
-    docScanner,
-    qrScanner,
-    imageSegmentation,
-    textRecognition,
+val menuItems =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        listOf(
+            aiChat,
+            docScanner,
+            qrScanner,
+            imageSegmentation,
+            textRecognition,
+        )
+    }else{
+        listOf(
+            docScanner,
+            qrScanner,
+            imageSegmentation,
+            textRecognition,
+        )
+    }
 
-)
+

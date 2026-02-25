@@ -1,6 +1,16 @@
 # TooAi
 
-    Android application utilizing google ML kit android and Jetpack compose.
+A powerful, offline-first Android application built with Jetpack Compose, utilizing Google ML Kit and the Google AI Edge SDK to bring advanced machine learning features directly to your device.
+
+# Features
+
+- **Run LLM models on device**: Chat offline with large language models (Requires Android 12+).
+- **Document Scan**: Scan physical documents using the camera.
+- **Text Recognition**: Extract text from images.
+- **Barcode/QR Code Scan**: Scan and decode barcodes and QR codes.
+- **Image Segmentation**: Remove background from any image.
+
+*Note: All features work offline on the device.*
 
 # Tech Stack and Libraries
 
@@ -22,6 +32,8 @@
   your project.
 - [ML Kit](https://developers.google.com/ml-kit) : A mobile SDK that brings Google's machine
   learning expertise to Android and iOS apps in a powerful yet easy-to-use package.
+- [Google AI Edge SDK](https://ai.google.dev/edge) : Tools to build and deploy on-device machine learning.
+- [LiteRT-LM](https://ai.google.dev/edge/litert) : Runtime for running Large Language Models on-device.
 
 # Architecture
 
@@ -34,13 +46,16 @@
 |:--------------------------------------------------------:|:----------------------------------------------------------------------:|:-------------------------------------------------------------------:|
 | <img alt="Home" src="screenshots/home.jpg" width="250"/> | <img alt="Home" src="screenshots/image-segmentation.jpg" width="250"/> | <img alt="Home" src="screenshots/qr-code-scanner.jpg" width="250"/> |
 
-|                            Text Recognition                            |
-|:----------------------------------------------------------------------:|
-| <img alt="Home" src="screenshots/text-recognization.jpg" width="250"/> |
+|                            Text Recognition                            |                           AI Chat                           |                           AI Models                           |
+|:----------------------------------------------------------------------:|:-----------------------------------------------------------:|:-------------------------------------------------------------:|
+| <img alt="Home" src="screenshots/text-recognization.jpg" width="250"/> | <img alt="Home" src="screenshots/ai_chat.jpg" width="250"/> | <img alt="Home" src="screenshots/ai_models.jpg" width="250"/> |
+
+|                           Document Scan                           |
+|:-----------------------------------------------------------------:|
+| <img alt="Home" src="screenshots/document_scan.jpg" width="250"/> |
 
 
 #License
 
 ```
 MIT License
-
