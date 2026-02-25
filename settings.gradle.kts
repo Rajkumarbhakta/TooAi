@@ -16,6 +16,9 @@ pluginManagement {
         }
     }
 }
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
 
@@ -26,6 +29,7 @@ dependencyResolutionManagement {
             // You can find the maven URL for other artifacts (e.g. KMP, METALAVA) on their
             // build pages.
             url = uri("https://androidx.dev/snapshots/builds/13541839/artifacts/repository")
+            maven("https://jitpack.io")
         }
     }
 }

@@ -10,13 +10,23 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import com.rkbapps.tooai.models.PdfDoc
 import java.io.File
 import java.io.File.separator
 import java.io.FileOutputStream
 import java.io.OutputStream
+import java.math.BigDecimal
+import java.math.RoundingMode
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 fun Context.getActivity(): ComponentActivity? = when (this) {
     is ComponentActivity -> this
@@ -93,38 +103,121 @@ private fun saveImageToStream(bitmap: Bitmap, outputStream: OutputStream?) {
     }
 }
 
+fun savePdfToDocuments(context: Context, sourceUri: Uri,destinationPath: String): PdfDoc? {
+    val resolver = context.contentResolver
+    val time = System.currentTimeMillis()
+    val fileName = "TooAi Scan - $time.pdf"
 
-fun copyFileToExternalStorage(context: Context, uri: Uri, destinationPath: String): Boolean {
-    return try {
-        val inputStream = context.contentResolver.openInputStream(uri)
-        if (inputStream != null) {
-            val directory =
-                File(Environment.getExternalStorageDirectory().absolutePath + separator + Environment.DIRECTORY_DOCUMENTS + separator + destinationPath)
-            if (!directory.exists()) {
-                directory.mkdirs()
+    val contentValues = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+        put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOCUMENTS + separator+destinationPath)
+        put(MediaStore.MediaColumns.IS_PENDING, 1)
+    }
+
+    val collection = MediaStore.Files.getContentUri("external")
+
+    val itemUri = resolver.insert(collection, contentValues) ?: return null
+
+    try {
+        resolver.openOutputStream(itemUri)?.use { output ->
+            resolver.openInputStream(sourceUri)?.use { input ->
+                input.copyTo(output)
             }
-            val fileName = System.currentTimeMillis().toString() + ".pdf"
-            val file = File(directory, fileName)
-            val outputStream =
-                FileOutputStream(file)
-            val buffer = ByteArray(1024)
-            var read: Int
-            while (inputStream.read(buffer).also { read = it } != -1) {
-                outputStream.write(buffer, 0, read)
-            }
-            inputStream.close()
-            outputStream.flush()
-            outputStream.close()
-            true
-        } else {
-            Log.e("CopyFile", "Error copying file")
-            false
         }
+
+        contentValues.clear()
+        contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+        resolver.update(itemUri, contentValues, null, null)
+
+        return PdfDoc(
+            title = fileName,
+            path = itemUri.toString(),
+            timeMillis = time
+        )
+
     } catch (e: Exception) {
-        Log.e("CopyFile", "Error copying file", e)
-        false
+        resolver.delete(itemUri, null, null)
+        Log.e("SavePdf", "Failed", e)
+        return null
     }
 }
+
+fun Context.getFileName(uri: Uri): String?{
+    return try {
+        when (uri.scheme) {
+            "content" -> {
+                this.contentResolver.query(uri,null,null,null,null)?.use { cursor ->
+                    if (cursor.moveToFirst()){
+                        val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        if (nameIndex!=-1){
+                            cursor.getString(nameIndex)
+                        }else{
+                            null
+                        }
+                    }else{
+                        null
+                    }
+                }
+            }
+            "file" -> {
+                uri.lastPathSegment
+            }
+            else -> {
+                null
+            }
+        }
+    }catch (e: Exception){
+        null
+    }
+}
+
+fun Context.getFileNameAndSize(uri: Uri): Pair<String, Long>{
+    val contentResolver = this.contentResolver
+    var fileSize = 0L
+    var displayName = ""
+    try {
+        contentResolver.query(uri,arrayOf(OpenableColumns.SIZE, OpenableColumns.DISPLAY_NAME),null,null,null)?.use { cursor ->
+            if (cursor.moveToFirst()){
+                val sizeIndex = cursor.getColumnIndexOrThrow(OpenableColumns.SIZE)
+                fileSize = cursor.getLong(sizeIndex)
+                val nameIndex = cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME)
+                displayName = cursor.getString(nameIndex)
+            }
+        }
+    }catch (e: Exception){
+        e.printStackTrace()
+    }
+    return displayName to fileSize
+}
+
+// Round a Double to 2 decimal places and return as Double.
+fun Double.roundTo2Decimals(): Double {
+    if (this.isNaN() || this.isInfinite()) return this
+    return BigDecimal.valueOf(this)
+        .setScale(2, RoundingMode.HALF_UP)
+        .toDouble()
+}
+
+// Round a Float to 2 decimal places and return as Double.
+fun Float.roundTo2Decimals(): Double {
+    if (this.isNaN() || this.isInfinite()) return this.toDouble()
+    return BigDecimal.valueOf(this.toDouble())
+        .setScale(2, RoundingMode.HALF_UP)
+        .toDouble()
+}
+
+
+
+fun Long.toDateTimeString(
+    pattern: String = "dd MMM yyyy HH:mm:ss",
+    locale: Locale = Locale.getDefault()
+): String {
+    val instant = Instant.ofEpochMilli(this)
+    val zdt = instant.atZone(ZoneId.systemDefault())
+    return zdt.format(DateTimeFormatter.ofPattern(pattern).withLocale(locale))
+}
+
 
 
 

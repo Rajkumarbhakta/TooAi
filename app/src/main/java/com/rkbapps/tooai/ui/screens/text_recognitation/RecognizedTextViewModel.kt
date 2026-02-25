@@ -1,9 +1,9 @@
-package com.rkbapps.tooai.viewmodels
+package com.rkbapps.tooai.ui.screens.text_recognitation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rkbapps.tooai.db.entity.RecognizedText
-import com.rkbapps.tooai.repository.RecognizedTextRepository
+import com.rkbapps.tooai.ui.screens.text_recognitation.RecognizedTextRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async

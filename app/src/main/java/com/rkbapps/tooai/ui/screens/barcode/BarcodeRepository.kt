@@ -1,9 +1,7 @@
-package com.rkbapps.tooai.repository
+package com.rkbapps.tooai.ui.screens.barcode
 
-import android.content.Context
 import com.rkbapps.tooai.db.dao.QrScanDao
 import com.rkbapps.tooai.db.entity.QrScan
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emitAll

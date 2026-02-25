@@ -1,9 +1,9 @@
-package com.rkbapps.tooai.viewmodels
+package com.rkbapps.tooai.ui.screens.barcode
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rkbapps.tooai.db.entity.QrScan
-import com.rkbapps.tooai.repository.BarcodeRepository
+import com.rkbapps.tooai.ui.screens.barcode.BarcodeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async

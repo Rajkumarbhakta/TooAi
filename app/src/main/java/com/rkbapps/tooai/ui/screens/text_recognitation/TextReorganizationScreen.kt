@@ -1,4 +1,4 @@
-package com.rkbapps.tooai.ui.screens
+package com.rkbapps.tooai.ui.screens.text_recognitation
 
 import android.net.Uri
 import android.widget.Toast
@@ -44,16 +44,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.rkbapps.tooai.R
 import com.rkbapps.tooai.db.entity.RecognizedText
+import com.rkbapps.tooai.ui.composabels.TopBar
 import com.rkbapps.tooai.utils.ProgressDialog
 import com.rkbapps.tooai.utils.copyText
-import com.rkbapps.tooai.viewmodels.RecognizedTextViewModel
+import com.rkbapps.tooai.ui.screens.text_recognitation.RecognizedTextViewModel
 import java.io.IOException
 
 @Composable
