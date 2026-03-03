@@ -3,6 +3,7 @@ package com.rkbapps.tooai.ui.screens.chat
 import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.Engine
 import com.rkbapps.tooai.db.entity.LlmModel
+import com.rkbapps.tooai.utils.Prompts
 import com.rkbapps.tooai.utils.UiState
 import java.util.UUID
 
@@ -14,6 +15,7 @@ data class ChatState(
     val isResponding: Boolean = false,
     val messages: List<ChatMessage> = emptyList(),
     val sessionId: String? = null,
+    val currentPromptType: Prompts? = null
 )
 
 data class LlmModelInstance(val engine: Engine, val conversation: Conversation)
