@@ -41,8 +41,8 @@ class ChatRepository @Inject constructor(
         // Context management constants
         private const val CONTEXT_THRESHOLD_PERCENTAGE = 0.75f // Reduce context at 75% of max tokens
         private const val MIN_MESSAGES_TO_KEEP = 2 // Keep at least the last 2 message pairs
-        private var totalTokensUsed = 0
     }
+    private var totalTokensUsed = 0
 
     //for fresh chat
     suspend fun initializeModel(modelId: Long) {

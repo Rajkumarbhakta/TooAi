@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -123,17 +124,18 @@ fun ChatScreen(
         bottomBar = {
             Box(
                 modifier = Modifier
-                    .background(color = MaterialTheme.colorScheme.secondaryContainer)
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
                     .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
-
+                    .background(color = MaterialTheme.colorScheme.secondaryContainer)
             ) {
                 Column(
-                    modifier = Modifier.padding(BottomAppBarDefaults.windowInsets.asPaddingValues())
+                    modifier = Modifier
+                        .padding(BottomAppBarDefaults.windowInsets.asPaddingValues())
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     TextField(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .heightIn(min = 56.dp, max = 120.dp)
                             .padding(bottom = 10.dp),
                         value = messageText,
                         onValueChange = { messageText = it },
@@ -533,7 +535,7 @@ fun PromptChip(
             .clickable(onClick = onClick)
             .padding(4.dp)
     ){
-        Text(prompt.type.name + (if(prompt.subType.isNotBlank())": ${prompt.subType}" else ""), color = MaterialTheme.colorScheme.onPrimary)
+        Text(prompt.type.name + (if(prompt.subType.isNotBlank())" : ${prompt.subType}" else ""), color = MaterialTheme.colorScheme.onPrimary)
         if (showClose)
         Icon(painter = painterResource(R.drawable.close),"", tint = MaterialTheme.colorScheme.onPrimary)
     }
