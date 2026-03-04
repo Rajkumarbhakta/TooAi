@@ -19,8 +19,8 @@ android {
         applicationId = "com.rkbapps.tooai"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "2.0.0"
+        versionCode = 4
+        versionName = "2.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
