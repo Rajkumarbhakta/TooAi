@@ -18,14 +18,5 @@ object ModelConfigs {
     const val MIN_TEMPERATURE = 0.0
     const val MAX_TEMPERATURE = 2.0
 
-
     const val IMPORT_DIR = "-imports"
-
-
-
-
-
-
-
-
 }

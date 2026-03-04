@@ -8,28 +8,38 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.BottomAppBarDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,6 +52,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -53,6 +64,9 @@ import com.halilibo.richtext.commonmark.Markdown
 import com.halilibo.richtext.ui.material3.RichText
 import com.rkbapps.tooai.R
 import com.rkbapps.tooai.ui.composabels.TopBar
+import com.rkbapps.tooai.utils.PredefinePrompts
+import com.rkbapps.tooai.utils.Prompts
+import com.rkbapps.tooai.utils.TypeOfPrompt
 import com.rkbapps.tooai.utils.copyText
 import com.rkbapps.tooai.utils.roundTo2Decimals
 
@@ -70,6 +84,11 @@ fun ChatScreen(
     var showModelSheet by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
+    // prompt sheet
+    var showPromptSheet by remember { mutableStateOf(false) }
+    val promptSheetState = rememberModalBottomSheetState()
+
+
     Scaffold(
         topBar = {
             TopBar(
@@ -78,18 +97,17 @@ fun ChatScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(100.dp))
                             .background(
-                            color = Color.White.copy(alpha = 0.2f)
-                        )
-                            .clickable{
-                                showModelSheet = true
-                            }
+                                color = Color.White.copy(alpha = 0.2f)
+                            )
+                            .clickable { showModelSheet = true }
                             .padding(8.dp)
                         ,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             state.llmModel?.displayName?:"Chat", style = MaterialTheme.typography.titleMedium,
-                            overflow = TextOverflow.MiddleEllipsis
+                            overflow = TextOverflow.MiddleEllipsis,
+                            maxLines = 1
                         )
                         if (state.llmModel!=null){
                             Icon(
@@ -102,6 +120,90 @@ fun ChatScreen(
             ) {
                 backStack.removeLastOrNull()
             }
+        },
+        bottomBar = {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
+                    .background(color = MaterialTheme.colorScheme.secondaryContainer)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(BottomAppBarDefaults.windowInsets.asPaddingValues())
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    TextField(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp, max = 120.dp)
+                            .padding(bottom = 10.dp),
+                        value = messageText,
+                        onValueChange = { messageText = it },
+                        placeholder = { Text("Ask tooai") },
+                        shape = RoundedCornerShape(100.dp),
+                        trailingIcon = {
+                            when{
+                                state.modelInitializingStatus.isLoading && state.instance == null ->{
+                                    Box(
+                                        modifier = Modifier.size(24.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 3.dp
+                                        )
+                                    }
+                                }
+                                state.isChatRunning ->{
+                                    Box(
+                                        modifier = Modifier.size(24.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 3.dp
+                                        )
+                                    }
+                                }
+                                else->{
+                                    FilledIconButton(
+                                        onClick = {
+                                            if (messageText.isNotBlank()) {
+                                                viewModel.sendMessage(messageText)
+                                                messageText = ""
+                                            }
+                                        }
+                                    ) {
+                                        Icon(painter = painterResource(R.drawable.send),"Send message")
+                                    }
+                                }
+                            }
+
+                        },
+                        colors = TextFieldDefaults.colors(
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            disabledIndicatorColor = Color.Transparent
+                        )
+                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp,)
+                    ) {
+                        if (state.currentPromptType==null){
+                            Icon(
+                                painter = painterResource(R.drawable.tune),"",
+                                modifier = Modifier.clickable{showPromptSheet = true}
+                            )
+                        }else{
+                            state.currentPromptType?.let { prompt->
+                                PromptChip(prompt = prompt, showClose = true) {
+                                    viewModel.selectAPredefinePrompt(null)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     ) {innerPadding->
 
@@ -112,7 +214,10 @@ fun ChatScreen(
                 sheetState = sheetState
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 32.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 32.dp)
                 ) {
                     Text(
                         "Available Models",
@@ -145,6 +250,48 @@ fun ChatScreen(
                 }
             }
         }
+        //prompt bottom sheet
+        if (showPromptSheet){
+            ModalBottomSheet(
+                onDismissRequest = { showPromptSheet = false },
+                sheetState = promptSheetState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = innerPadding.calculateTopPadding()),
+            ) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(
+                        PredefinePrompts.listOfPrompts,
+                        key = { it.subType }
+                    ) { prompt ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    color =
+                                        if (state.currentPromptType == prompt) MaterialTheme.colorScheme.primaryContainer
+                                        else MaterialTheme.colorScheme.secondaryContainer
+                                )
+                                .clickable {
+                                    viewModel.selectAPredefinePrompt(prompt)
+                                    scope.launch {
+                                        promptSheetState.hide()
+                                        showPromptSheet = false
+                                    }
+                                }
+                                .padding(16.dp)
+                        ){
+                            Text("${prompt.type.displayString} : ${prompt.subType}")
+                        }
+                    }
+                }
+            }
+        }
 
         Column(
             modifier = Modifier
@@ -157,7 +304,9 @@ fun ChatScreen(
             }
 
             LazyColumn(
-                modifier = Modifier.weight(1f).padding(bottom = 8.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(bottom = 8.dp),
                 reverseLayout = true
             ) {
                 item {
@@ -187,53 +336,6 @@ fun ChatScreen(
                     }
                 }
             }
-
-            OutlinedTextField(
-                modifier = Modifier.fillMaxWidth(),
-                value = messageText,
-                onValueChange = { messageText = it },
-                placeholder = { Text("Type a message") },
-                shape = RoundedCornerShape(100.dp),
-                trailingIcon = {
-                when{
-                    state.modelInitializingStatus.isLoading && state.instance == null ->{
-                        Box(
-                            modifier = Modifier.size(24.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 3.dp
-                            )
-                        }
-                    }
-                    state.isChatRunning ->{
-                        Box(
-                            modifier = Modifier.size(24.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 3.dp
-                            )
-                        }
-                    }
-                    else->{
-                            FilledIconButton(
-                                onClick = {
-                                    if (messageText.isNotBlank()) {
-                                        viewModel.sendMessage(messageText)
-                                        messageText = ""
-                                    }
-                                }
-                            ) {
-                                Icon(painter = painterResource(R.drawable.send),"Send message")
-                            }
-                        }
-                    }
-
-                }
-            )
         }
     }
 
@@ -249,6 +351,11 @@ fun ChatMessageItem(
     val context = LocalContext.current
     var isStatsVisible by remember { mutableStateOf(false) }
     var isExpanded by remember { mutableStateOf(false) }
+
+    val prompt =  getPromptTypeIfApplied(message.message)
+    val isPromptApplied = prompt!=null
+
+
     
     Column(
         modifier = modifier
@@ -259,23 +366,37 @@ fun ChatMessageItem(
     ) {
         Card(
             onClick = {
-                isExpanded = !isExpanded
+                if (message.type == ChatType.ASSISTANT){
+                    isExpanded = !isExpanded
+                }
                 isStatsVisible = false
             },
             colors = CardDefaults.cardColors(containerColor = color)
         ) {
+            if (isPromptApplied){
+                PromptChip(
+                    prompt = Prompts(type = prompt, subType = "", prompt = ""),
+                    showClose = false
+                ) { }
+            }
+
             if (message.isResponding){
                 CircularProgressIndicator(
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .size(24.dp),
+                    modifier = Modifier.padding(8.dp).size(24.dp),
                     strokeWidth = 3.dp
                 )
             }else{
                 RichText(
-                    modifier = Modifier.background(color).padding(8.dp),
+                    modifier = Modifier
+                        .background(color)
+                        .padding(8.dp),
                 ){
-                    Markdown(content = message.message)
+                    if (isPromptApplied){
+                        val updatedMessage = removePromptIfApplied(message.message)
+                        Markdown(content = updatedMessage)
+                    }else{
+                        Markdown(content = message.message)
+                    }
                 }
             }
         }
@@ -364,6 +485,62 @@ fun ChatMessageItem(
     }
 }
 
+fun getPromptTypeIfApplied(message:String): TypeOfPrompt?{
+    when{
+        message.startsWith(PredefinePrompts.REWRITE_FORMAL) ||
+                message.startsWith(PredefinePrompts.REWRITE_FRIENDLY) ||
+                message.startsWith(PredefinePrompts.REWRITE_FRIENDLY) ->{
+            return TypeOfPrompt.Rewrite
+        }
+        message.startsWith(PredefinePrompts.SUMMARY_BULLET_POINT) ||
+        message.startsWith(PredefinePrompts.SUMMARY_CONCISE) ||
+        message.startsWith(PredefinePrompts.SUMMARY_SHORT_PARAGRAPH) ->{
+            return TypeOfPrompt.Summary
+        }
+        message.startsWith(PredefinePrompts.CODE_SNIPPET_CPP) ||
+                message.startsWith(PredefinePrompts.CODE_SNIPPET_JAVA) ||
+                message.startsWith(PredefinePrompts.CODE_SNIPPET_KOTLIN) ||
+                message.startsWith(PredefinePrompts.CODE_SNIPPET_PYTHON) ||
+                message.startsWith(PredefinePrompts.CODE_SNIPPET_SWIFT) ||
+                message.startsWith(PredefinePrompts.CODE_SNIPPET_JAVA_SCRIPT) ||
+                message.startsWith(PredefinePrompts.CODE_SNIPPET_JAVA_SCRIPT) -> {
+                    return TypeOfPrompt.CodeSnippet
+                }
+        else ->{
+            return  null
+        }
+    }
+}
+
+fun removePromptIfApplied(message: String): String{
+    val isApplied = PredefinePrompts.listOfPrompts.any { message.startsWith(it.prompt,ignoreCase = true) }
+    return if (isApplied){
+        message.removePrefix(PredefinePrompts.listOfPrompts.first { message.startsWith(it.prompt,ignoreCase = true) }.prompt)
+    }else{
+        message
+    }
+}
+
+@Composable
+fun PromptChip(
+    modifier: Modifier = Modifier,
+    prompt: Prompts,
+    showClose: Boolean,
+    onClick: () -> Unit
+    ) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(color = MaterialTheme.colorScheme.primary)
+            .clickable(onClick = onClick)
+            .padding(4.dp)
+    ){
+        Text(prompt.type.name + (if(prompt.subType.isNotBlank())" : ${prompt.subType}" else ""), color = MaterialTheme.colorScheme.onPrimary)
+        if (showClose)
+        Icon(painter = painterResource(R.drawable.close),"", tint = MaterialTheme.colorScheme.onPrimary)
+    }
+}
+
 
 @Composable
 fun StatsItem(
@@ -418,12 +595,16 @@ fun ModelListItem(
         else { MaterialTheme.colorScheme.secondaryContainer }
     )
     Card(
-        modifier = modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
         onClick = onSelectModel,
         colors = CardDefaults.cardColors(containerColor = color.value)
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),

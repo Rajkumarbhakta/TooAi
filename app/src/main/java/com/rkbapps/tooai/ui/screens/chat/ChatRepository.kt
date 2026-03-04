@@ -12,6 +12,7 @@ import com.google.ai.edge.litertlm.SamplerConfig
 import com.rkbapps.tooai.db.dao.ChatDao
 import com.rkbapps.tooai.db.dao.LlmModelDao
 import com.rkbapps.tooai.db.entity.ChatSession
+import com.rkbapps.tooai.utils.Prompts
 import com.rkbapps.tooai.utils.UiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,8 +41,8 @@ class ChatRepository @Inject constructor(
         // Context management constants
         private const val CONTEXT_THRESHOLD_PERCENTAGE = 0.75f // Reduce context at 75% of max tokens
         private const val MIN_MESSAGES_TO_KEEP = 2 // Keep at least the last 2 message pairs
-        private var totalTokensUsed = 0
     }
+    private var totalTokensUsed = 0
 
     //for fresh chat
     suspend fun initializeModel(modelId: Long) {
@@ -225,6 +226,12 @@ class ChatRepository @Inject constructor(
 
     @OptIn(ExperimentalApi::class)
     suspend fun sendMessage(message: String) {
+        val message = if (chatState.value.currentPromptType!=null){
+            (chatState.value.currentPromptType?.prompt?:"") + message
+        }else{
+            message
+        }
+        Log.d("ChatRepository", "sendMessage: $message")
         val instance = _chatState.value.instance ?: return
         val sessionId = _chatState.value.sessionId ?: return
 
@@ -253,6 +260,12 @@ class ChatRepository @Inject constructor(
         _chatState.update { it.copy(messages = currentMessages) }
 
         generateResponse(message, instance, false, aiMessageId, sessionId)
+    }
+
+    fun selectAPredefinePrompt(prompt: Prompts?){
+        _chatState.update {
+            it.copy(currentPromptType = prompt)
+        }
     }
 
     @OptIn(ExperimentalApi::class)

@@ -10,6 +10,7 @@ import com.rkbapps.tooai.MainActivity
 import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.navigation.IdType
 import com.rkbapps.tooai.navigation.NavigationEntry
+import com.rkbapps.tooai.utils.Prompts
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
@@ -62,6 +63,11 @@ class ChatViewModel @Inject constructor(
             repository.sendMessage(message)
         }
     }
+
+    fun selectAPredefinePrompt(prompt: Prompts?){
+        repository.selectAPredefinePrompt(prompt)
+    }
+
 
 
     override fun onCleared() {
