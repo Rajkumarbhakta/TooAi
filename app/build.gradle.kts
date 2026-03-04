@@ -122,6 +122,8 @@ dependencies {
     ksp(libs.room.compiler)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.sqlite.bundled)
+    //data store
+    implementation(libs.datastore.preferences)
     //hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)

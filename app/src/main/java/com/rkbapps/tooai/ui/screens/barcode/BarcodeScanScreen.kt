@@ -13,20 +13,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -37,8 +36,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -161,74 +162,130 @@ fun BarcodeScanScreen(backStack: SnapshotStateList<Any>,
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(0.5f)
                         .background(
                             color = MaterialTheme.colorScheme.surface,
-                            shape = RoundedCornerShape(8.dp)
-                        ), horizontalAlignment = Alignment.CenterHorizontally
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.Start
                 ) {
                     Text(
-                        text = "Result", modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp, horizontal = 16.dp),
-                        style = MaterialTheme.typography.titleMedium,
+                        text = "Scan Result",
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
+                        modifier = Modifier.padding(bottom = 16.dp)
                     )
-                    SelectionContainer(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(8.dp)
-                            .verticalScroll(rememberScrollState())
-                    ) {
+
+                    // DISPLAY VALUE
+                    Text(
+                        text = "DISPLAY VALUE",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray
+                    )
+                    SelectionContainer {
                         Text(
-                            text = currentQrScan.value!!.getData(),
-                            modifier = Modifier.fillMaxSize()
+                            text = currentQrScan.value?.displayValue ?: "",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
                         )
                     }
 
-                    Row(
+                    // RAW VALUE
+                    Text(
+                        text = "RAW VALUE",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray
+                    )
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .padding(top = 4.dp, bottom = 12.dp)
+                            .background(color = MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(4.dp))
+                            .padding(8.dp)
                     ) {
-                        Button(
-                            modifier = Modifier.weight(1f),
-                            onClick = { isDialogVisible.value = false }) {
-                            Text(text = "Dismiss")
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        if (currentQrScan.value!!.id == 0L) {
-                            Button(modifier = Modifier.weight(1f), onClick = {
-                                val clipboard: ClipboardManager =
-                                    context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                val clip = ClipData.newPlainText(
-                                    "label",
-                                    currentQrScan.value!!.getData()
-                                )
-                                clipboard.setPrimaryClip(clip)
-                                Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
-                            }) {
-                                Text(text = "Copy")
-                            }
-                        } else {
-                            Button(modifier = Modifier.weight(1f), onClick = {
-                                viewModel.deleteQrScan(currentQrScan.value!!)
-                                isDialogVisible.value = false
-                                Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show()
-                            }) {
-                                Text(text = "Delete")
-                            }
+                        SelectionContainer {
+                            Text(
+                                text = currentQrScan.value?.rawVale ?: "",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontFamily = FontFamily.Monospace,
+                                color = Color.Black
+                            )
                         }
                     }
 
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "FORMAT",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Gray
+                            )
+                            Text(
+                                text = getFormatLabel(currentQrScan.value?.format ?: -1),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "VALUE TYPE",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Gray
+                            )
+                            Text(
+                                text = getValueTypeLabel(currentQrScan.value?.valueType ?: -1),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
 
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            onClick = { isDialogVisible.value = false },
+                        ) {
+                            Text(text = "Dismiss")
+                        }
+
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                if (currentQrScan.value?.id == 0L) {
+                                    // Copy logic
+                                    val clipboard: ClipboardManager =
+                                        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = ClipData.newPlainText(
+                                        "label",
+                                        currentQrScan.value?.displayValue ?: ""
+                                    )
+                                    clipboard.setPrimaryClip(clip)
+                                    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    // Delete logic
+                                    viewModel.deleteQrScan(currentQrScan.value!!)
+                                    isDialogVisible.value = false
+                                    Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                        ) {
+                            Text(text = if (currentQrScan.value?.id == 0L) "Copy" else "Delete")
+                        }
+                    }
                 }
-
-
             }
         }
 
@@ -308,35 +365,39 @@ private fun getSuccessfulMessage(barcode: Barcode): String {
     )
 }
 
-private fun barcodeAction(valueType: Int, context: Context, rawValue: String) {
-    try {
-        when (valueType) {
-            Barcode.TYPE_EMAIL -> {
-                val intent = Intent(Intent.ACTION_SENDTO)
-                intent.data = Uri.parse(rawValue)
-                context.startActivity(intent)
-            }
-
-            Barcode.TYPE_GEO -> {
-                val intent = Intent(Intent.ACTION_VIEW)
-                intent.data = Uri.parse(rawValue)
-                context.startActivity(intent)
-            }
-
-            Barcode.TYPE_PHONE -> {
-                val intent = Intent(Intent.ACTION_DIAL)
-                intent.data = Uri.parse(rawValue)
-                context.startActivity(intent)
-            }
-
-            Barcode.TYPE_URL -> {
-                val intent = Intent(Intent.ACTION_VIEW)
-                intent.data = Uri.parse(rawValue)
-                context.startActivity(intent)
-            }
-        }
-    } catch (e: Exception) {
-        e.printStackTrace()
+private fun getFormatLabel(format: Int): String {
+    return when (format) {
+        Barcode.FORMAT_CODE_128 -> "CODE_128"
+        Barcode.FORMAT_CODE_39 -> "CODE_39"
+        Barcode.FORMAT_CODE_93 -> "CODE_93"
+        Barcode.FORMAT_CODABAR -> "CODABAR"
+        Barcode.FORMAT_DATA_MATRIX -> "DATA_MATRIX"
+        Barcode.FORMAT_EAN_13 -> "EAN_13"
+        Barcode.FORMAT_EAN_8 -> "EAN_8"
+        Barcode.FORMAT_ITF -> "ITF"
+        Barcode.FORMAT_QR_CODE -> "QR_CODE"
+        Barcode.FORMAT_UPC_A -> "UPC_A"
+        Barcode.FORMAT_UPC_E -> "UPC_E"
+        Barcode.FORMAT_PDF417 -> "PDF417"
+        Barcode.FORMAT_AZTEC -> "AZTEC"
+        else -> "UNKNOWN"
     }
+}
 
+private fun getValueTypeLabel(type: Int): String {
+    return when (type) {
+        Barcode.TYPE_CONTACT_INFO -> "CONTACT_INFO"
+        Barcode.TYPE_EMAIL -> "EMAIL"
+        Barcode.TYPE_ISBN -> "ISBN"
+        Barcode.TYPE_PHONE -> "PHONE"
+        Barcode.TYPE_PRODUCT -> "PRODUCT"
+        Barcode.TYPE_SMS -> "SMS"
+        Barcode.TYPE_TEXT -> "TEXT"
+        Barcode.TYPE_URL -> "URL"
+        Barcode.TYPE_WIFI -> "WIFI"
+        Barcode.TYPE_GEO -> "GEO"
+        Barcode.TYPE_CALENDAR_EVENT -> "CALENDAR_EVENT"
+        Barcode.TYPE_DRIVER_LICENSE -> "DRIVER_LICENSE"
+        else -> "UNKNOWN"
+    }
 }

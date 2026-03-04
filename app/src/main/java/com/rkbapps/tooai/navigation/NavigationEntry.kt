@@ -40,6 +40,10 @@ sealed class NavigationEntry: NavKey, Parcelable {
         val type: IdType = IdType.CHAT
     ): NavigationEntry()
 
+    @Parcelize
+    @Serializable
+    data object Settings: NavigationEntry()
+
 }
 
 

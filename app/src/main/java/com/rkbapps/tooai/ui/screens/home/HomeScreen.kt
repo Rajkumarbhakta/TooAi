@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
@@ -24,8 +26,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -52,7 +56,16 @@ fun HomeScreen(backStack: SnapshotStateList<Any>) {
 
     Scaffold(topBar = {
         TopBar(
-            stringResource(id = R.string.app_name)
+            stringResource(id = R.string.app_name),
+            actions = {
+                FilledIconButton(
+                    onClick = {
+                        backStack.add(NavigationEntry.Settings)
+                    }
+                ) {
+                    Icon(painter = painterResource(R.drawable.settings), contentDescription = "Settings")
+                }
+            }
         )
     }) { paddingValues ->
 
@@ -60,16 +73,14 @@ fun HomeScreen(backStack: SnapshotStateList<Any>) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp)
             ,
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
 
             Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 8.dp),
+                modifier = Modifier.weight(1f).padding(bottom = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
                 LottieAnimation(
@@ -83,18 +94,6 @@ fun HomeScreen(backStack: SnapshotStateList<Any>) {
                     backStack.add(item.navigationEntry)
                 }
             }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-
-                Text(text = "Made with ❤\nBY RKB", textAlign = TextAlign.Center)
-
-            }
-
         }
     }
 }

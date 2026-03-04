@@ -17,6 +17,8 @@ playServicesCodeScanner = "16.1.0"
 room = "2.8.4"
 sqlite = "2.6.2"
 
+dataStore = "1.2.0"
+
 ksp = "2.3.5"
 
 segmentationSelfie = "16.0.0-beta6"
@@ -63,6 +65,8 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 
+datastore-preferences = { module = "androidx.datastore:datastore-preferences",version.ref = "dataStore"}
+
 # ml kit models
 play-services-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "playServicesCodeScanner" }
 play-services-mlkit-document-scanner = { module = "com.google.android.gms:play-services-mlkit-document-scanner", version.ref = "playServicesMlkit" }
@@ -94,7 +98,6 @@ kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
-jetbrainsKotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 devtools-ksp = {id="com.google.devtools.ksp",version.ref="ksp"}
 dagger-hilt-android = {id="com.google.dagger.hilt.android",version.ref="hiltAndroid"}
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
