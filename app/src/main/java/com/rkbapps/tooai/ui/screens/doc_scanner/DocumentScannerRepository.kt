@@ -42,12 +42,6 @@ class DocumentScannerRepository @Inject constructor(
     private val _docSavingState = MutableStateFlow<UiState<DocumentScans?>>(UiState())
     val docSavingState = _docSavingState.asStateFlow()
 
-
-
-
-
-
-
     fun startScan(
         activity: Activity,
         onScanResult: (IntentSenderRequest) -> Unit,
