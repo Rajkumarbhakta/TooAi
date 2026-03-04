@@ -22,9 +22,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -38,6 +40,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -60,6 +63,7 @@ import java.io.IOException
 @Composable
 fun TextReorganizationScreen(backStack: SnapshotStateList<Any>,viewModel: RecognizedTextViewModel= hiltViewModel()) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
 
     val recognizedTextList = viewModel.recognizedTextList.collectAsState()
 
@@ -90,7 +94,17 @@ fun TextReorganizationScreen(backStack: SnapshotStateList<Any>,viewModel: Recogn
 
     Scaffold(
         topBar = {
-            TopBar(title = "Text Recognition") {
+            TopBar(title = "Text Recognition",
+                actions = {
+                    FilledIconButton(
+                        onClick = {
+                            uriHandler.openUri("https://developers.google.com/ml-kit/vision/text-recognition/v2/languages")
+                        }
+                    ) {
+                        Icon(painter = painterResource(R.drawable.info), contentDescription = "Supported languages")
+                    }
+                }
+                ) {
                 backStack.removeLastOrNull()
             }
         }
@@ -269,7 +283,7 @@ fun TextReorganizationScreen(backStack: SnapshotStateList<Any>,viewModel: Recogn
                                     Text(text = "Copy")
                                 }
                             } else {
-                                Button(modifier = Modifier.weight(1f), onClick = {
+                                OutlinedButton(modifier = Modifier.weight(1f), onClick = {
                                     viewModel.delete(currentRecognizedText.value!!)
                                     isDialogVisible.value = false
                                     Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT)

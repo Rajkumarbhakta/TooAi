@@ -2,6 +2,7 @@ package com.rkbapps.tooai.db.entity
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
 
@@ -14,6 +15,9 @@ import java.util.UUID
             childColumns = ["sessionId"],
             onDelete = ForeignKey.CASCADE
         )
+    ],
+    indices = [
+        Index(value = ["sessionId"])
     ]
 )
 data class ChatMessage(

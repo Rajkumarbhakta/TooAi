@@ -16,7 +16,7 @@ import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.db.entity.QrScan
 import com.rkbapps.tooai.db.entity.RecognizedText
 
-@Database(entities = [QrScan::class, RecognizedText::class, DocumentScans::class, LlmModel::class, ChatSession::class, ChatMessage::class], version = 4, exportSchema = false)
+@Database(entities = [QrScan::class, RecognizedText::class, DocumentScans::class, LlmModel::class, ChatSession::class, ChatMessage::class], version = 5, exportSchema = false)
 abstract class Database : RoomDatabase() {
     abstract fun qrScanDao(): QrScanDao
     abstract fun recognizedTextDao(): RecognizedTextDao
@@ -47,6 +47,12 @@ abstract class Database : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // Add tokenUsed column to chat_messages table
                 db.execSQL("ALTER TABLE `chat_messages` ADD COLUMN `tokenUsed` INTEGER")
+            }
+        }
+
+        val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_chat_messages_sessionId` ON `chat_messages` (`sessionId`)")
             }
         }
     }

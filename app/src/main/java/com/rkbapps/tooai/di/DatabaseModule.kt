@@ -2,6 +2,8 @@ package com.rkbapps.tooai.di
 
 import android.content.Context
 import androidx.room.Room
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.rkbapps.tooai.db.Database
 import com.rkbapps.tooai.db.dao.DocumentScansDao
 import com.rkbapps.tooai.db.dao.QrScanDao
@@ -17,6 +19,11 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+
+    @Provides
+    @Singleton
+    fun provideGson(): Gson = GsonBuilder().create()
+
     @Provides
     @Singleton
     fun provideRoomDatabase(@ApplicationContext context: Context): Database {
@@ -24,7 +31,12 @@ object DatabaseModule {
             context.applicationContext,
             Database::class.java,
             "app_database"
-        ).addMigrations(Database.MIGRATION_1_2, Database.MIGRATION_2_3, Database.MIGRATION_3_4).build()
+        ).addMigrations(
+            Database.MIGRATION_1_2,
+            Database.MIGRATION_2_3,
+            Database.MIGRATION_3_4,
+            Database.MIGRATION_4_5
+        ).build()
     }
 
     @Provides
