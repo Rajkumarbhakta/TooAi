@@ -4,12 +4,14 @@ package com.rkbapps.tooai.ui.screens.ai_writer
 import android.util.Log
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.SamplerConfig
+import com.google.android.datatransport.runtime.backends.BackendFactory
 import com.rkbapps.tooai.db.dao.LlmModelDao
 import com.rkbapps.tooai.db.entity.LlmModel
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +47,7 @@ class AiWriterRepository @Inject constructor(
             val engine = Engine(
                 engineConfig = EngineConfig(
                     modelPath = model.path,
-                    backend = Backend.CPU,
+                    backend = Backend.CPU(),
                     visionBackend = null,
                     audioBackend = null,
                     maxNumTokens = model.maxTokens
@@ -71,7 +73,7 @@ class AiWriterRepository @Inject constructor(
                                 topK = model.topK,
                                 topP = model.topP
                             ),
-                            systemMessage = Message.of(SYSTEM_PROMPT)
+                            systemInstruction = Contents.of(SYSTEM_PROMPT)
                         )
                     )
                 )
@@ -84,7 +86,7 @@ class AiWriterRepository @Inject constructor(
     /** Emits the response as it is generated. Each emission is the full text so far. */
     fun generate(conversation: Conversation, prompt: String): Flow<String> = flow {
         val builder = StringBuilder()
-        conversation.sendMessageAsync(Message.of(Content.Text(prompt))).collect { message ->
+        conversation.sendMessageAsync(Contents.of(Content.Text(prompt))).collect { message ->
             builder.append(message.toString())
             emit(builder.toString())
         }
