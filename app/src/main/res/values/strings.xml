@@ -1,3 +1,17 @@
 <resources>
     <string name="app_name">TooAi</string>
+
+    <!-- AI Writer -->
+    <string name="ai_writer">AI Writer</string>
+    <string name="ai_writer_no_model_title">No model imported</string>
+    <string name="ai_writer_no_model_message">Import a .task or .litertlm model in TooAi to use AI Writer.</string>
+    <string name="ai_writer_import_model">Import a model</string>
+    <string name="ai_writer_loading_model">Loading model…</string>
+    <string name="ai_writer_replace">Replace</string>
+    <string name="ai_writer_copy">Copy</string>
+    <string name="ai_writer_retry">Retry</string>
+    <string name="ai_writer_stop">Stop</string>
+    <string name="ai_writer_back">Back to actions</string>
+    <string name="ai_writer_selected_text">Selected text</string>
+    <string name="ai_writer_no_text">No text was selected.</string>
 </resources>
