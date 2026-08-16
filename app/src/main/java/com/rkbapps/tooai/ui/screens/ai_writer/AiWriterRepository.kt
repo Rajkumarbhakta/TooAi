@@ -110,7 +110,8 @@ class AiWriterRepository @Inject constructor(
          * would be pasted literally.
          */
         private const val SYSTEM_PROMPT =
-            "You are a writing assistant. You rewrite or summarize the text the user gives you.\n" +
+            "You are a writing assistant. You write, rewrite, correct, or summarize text as the " +
+                "user asks.\n" +
                 "Output ONLY the resulting text. Do not add a preamble, explanation, or commentary. " +
                 "Do not wrap the output in quotes or markdown code fences. " +
                 "Preserve the original language of the text. " +

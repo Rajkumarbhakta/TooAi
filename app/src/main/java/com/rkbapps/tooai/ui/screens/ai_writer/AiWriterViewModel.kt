@@ -1,6 +1,7 @@
 package com.rkbapps.tooai.ui.screens.ai_writer
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.Engine
@@ -8,9 +9,12 @@ import com.rkbapps.tooai.db.PreferenceManager
 import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.utils.Prompts
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -24,11 +28,28 @@ class AiWriterViewModel @Inject constructor(
     private val _state = MutableStateFlow(AiWriterState())
     val state = _state.asStateFlow()
 
+
+    val isSystemTheme = preferenceManager.getBooleanPreference(PreferenceManager.IS_USE_SYSTEM_THEME, true)
+        .stateIn(viewModelScope, SharingStarted.Lazily, true)
+
+    val isDarkTheme = preferenceManager
+        .getBooleanPreference(PreferenceManager.IS_DARK_THEME, false)
+        .stateIn(viewModelScope, SharingStarted.Lazily, false)
+
     /** Held across actions so a second action doesn't reload the model. Closed in [onCleared]. */
     private var engine: Engine? = null
     private var engineModelId: Long? = null
     private var conversation: Conversation? = null
     private var generationJob: Job? = null
+
+    /**
+     * Results accumulated on the current generation page. Held here rather than in [Stage.Done] so
+     * a regenerate can append to it while the UI is showing [Stage.Generating].
+     */
+    private val variants = mutableListOf<String>()
+
+    /** The last composed prompt, replayed by [regenerate] and [retry]. */
+    private var lastFullPrompt: String? = null
 
     private var started = false
 
@@ -47,6 +68,74 @@ class AiWriterViewModel @Inject constructor(
         }
     }
 
+
+    /**
+     * Navigates to [page]. Generation pages start from a clean variant list and immediately run
+     * their default prompt, so the user lands on a result rather than an empty card.
+     */
+    fun onCurrentPageChange(page: AiWriterPages) {
+        // Leaving a page mid-generation must stop the model, not just detach the UI from it.
+        cancelGeneration()
+        variants.clear()
+        lastFullPrompt = null
+
+        val prompt = page.defaultPrompt()
+        _state.update {
+            it.copy(
+                currentPage = page,
+                activePrompt = prompt,
+                stage = AiWriterState.Stage.Idle
+            )
+        }
+        // The free-form page has nothing to run until the user types something.
+        if (page.isGenerationPage() && prompt != null) {
+            run(prompt.prompt + _state.value.sourceText)
+        }
+    }
+
+    /** Re-runs whatever was last sent and appends the result as a new variant. */
+    fun regenerate() {
+        lastFullPrompt?.let { run(it) }
+    }
+
+    fun updatePromptText(text: String) {
+        _state.update { it.copy(promptText = text) }
+    }
+
+    fun setUseSourceAsContext(enabled: Boolean) {
+        _state.update { it.copy(useSourceAsContext = enabled) }
+    }
+
+    /** Runs the free-form instruction typed on the Write anything page. */
+    fun runFreeform() {
+        val current = _state.value
+        val instruction = current.promptText.trim()
+        if (instruction.isBlank()) return
+        // No tone chips on this page, so nothing owns activePrompt.
+        _state.update { it.copy(activePrompt = null) }
+        run(
+            composeFreeform(
+                instruction = instruction,
+                source = current.sourceText,
+                useContext = current.useSourceAsContext
+            )
+        )
+    }
+
+    private fun composeFreeform(instruction: String, source: String, useContext: Boolean): String =
+        if (useContext && source.isNotBlank()) {
+            "$instruction\n\nText:\n$source"
+        } else {
+            instruction
+        }
+
+    fun showVariant(index: Int) {
+        if (index !in variants.indices) return
+        _state.update {
+            it.copy(stage = AiWriterState.Stage.Done(variants.toList(), index))
+        }
+    }
+
     /** Called once by the activity with what the calling app handed over. */
     fun start(sourceText: String, canReplace: Boolean) {
         if (started) return
@@ -57,6 +146,8 @@ class AiWriterViewModel @Inject constructor(
     fun selectModel(model: LlmModel) {
         if (_state.value.selectedModel?.id == model.id) return
         // The loaded engine belongs to the old model — drop it so the next action reloads.
+        cancelGeneration()
+        variants.clear()
         releaseConversation()
         releaseEngine()
         _state.update { it.copy(selectedModel = model, stage = AiWriterState.Stage.Idle) }
@@ -71,34 +162,27 @@ class AiWriterViewModel @Inject constructor(
     }
 
     fun retry() {
-        val prompt = _state.value.activePrompt ?: return
-        run(prompt.prompt + _state.value.sourceText)
+        lastFullPrompt?.let { run(it) }
     }
 
     fun stop() {
-        conversation?.let { repository.cancel(it) }
-        generationJob?.cancel()
-        generationJob = null
+        cancelGeneration()
         // Keep whatever was generated so far — partial output is often still usable.
-        _state.update { current ->
-            val partial = (current.stage as? AiWriterState.Stage.Generating)?.partial.orEmpty()
-            if (partial.isBlank()) {
-                current.copy(stage = AiWriterState.Stage.Idle)
-            } else {
-                current.copy(stage = AiWriterState.Stage.Done(partial.trim()))
-            }
+        val partial = (_state.value.stage as? AiWriterState.Stage.Generating)?.partial.orEmpty()
+        if (partial.isBlank()) {
+            _state.update { it.copy(stage = restoredStage()) }
+        } else {
+            commitVariant(sanitize(partial))
         }
     }
 
-    /** Back to the action grid without discarding the loaded engine. */
-    fun reset() {
-        generationJob?.cancel()
-        generationJob = null
-        _state.update { it.copy(stage = AiWriterState.Stage.Idle, activePrompt = null) }
-    }
-
+    /**
+     * Takes the fully composed prompt rather than a [Prompts], so the tone-chip pages and the
+     * free-form page share one path — and so [regenerate] and [retry] can replay either.
+     */
     private fun run(fullPrompt: String) {
         val model = _state.value.selectedModel ?: return
+        lastFullPrompt = fullPrompt
         generationJob?.cancel()
         generationJob = viewModelScope.launch {
             val activeEngine = ensureEngine(model) ?: return@launch
@@ -115,25 +199,46 @@ class AiWriterViewModel @Inject constructor(
 
             _state.update { it.copy(stage = AiWriterState.Stage.Generating("")) }
             try {
-                repository.generate(newConversation, fullPrompt).collect { partial ->
-                    _state.update { it.copy(stage = AiWriterState.Stage.Generating(partial)) }
-                }
+                repository.generate(newConversation, fullPrompt)
+                    .collect { partial ->
+                        _state.update { it.copy(stage = AiWriterState.Stage.Generating(partial)) }
+                    }
                 val result = (_state.value.stage as? AiWriterState.Stage.Generating)
                     ?.partial
                     ?.let(::sanitize)
                     .orEmpty()
-                _state.update {
-                    if (result.isBlank()) {
+                if (result.isBlank()) {
+                    _state.update {
                         it.copy(stage = AiWriterState.Stage.Error("The model returned nothing."))
-                    } else {
-                        it.copy(stage = AiWriterState.Stage.Done(result))
                     }
+                } else {
+                    commitVariant(result)
                 }
+            } catch (e: CancellationException) {
+                // Stop / back / dismiss cancel this job on purpose. Swallowing it here would let
+                // the cancellation land as an "error" on top of the state the caller just set.
+                throw e
             } catch (e: Exception) {
                 _state.update { it.copy(stage = AiWriterState.Stage.Error(e.readableMessage())) }
             }
         }
     }
+
+    /** Appends a finished result and moves the pager to it. */
+    private fun commitVariant(result: String) {
+        variants += result
+        _state.update {
+            it.copy(stage = AiWriterState.Stage.Done(variants.toList(), variants.lastIndex))
+        }
+    }
+
+    /** Where to land when a run produces nothing — the previous variants, or an empty page. */
+    private fun restoredStage(): AiWriterState.Stage =
+        if (variants.isEmpty()) {
+            AiWriterState.Stage.Idle
+        } else {
+            AiWriterState.Stage.Done(variants.toList(), variants.lastIndex)
+        }
 
     /** Returns the loaded engine, loading it first if this is the first action. */
     private suspend fun ensureEngine(model: LlmModel): Engine? {
@@ -147,6 +252,28 @@ class AiWriterViewModel @Inject constructor(
         engine = loaded
         engineModelId = model.id
         return loaded
+    }
+
+    /**
+     * Stops an in-flight generation.
+     *
+     * Cancelling the coroutine alone only unsubscribes from the flow — the native LiteRT decode
+     * keeps running and burning CPU, so the conversation has to be cancelled too.
+     */
+    private fun cancelGeneration() {
+        conversation?.let { repository.cancel(it) }
+        generationJob?.cancel()
+        generationJob = null
+    }
+
+    /**
+     * Called when the sheet is dismissed. Releases the model straight away rather than waiting for
+     * [onCleared] to run after the activity finishes — the engine holds gigabytes.
+     */
+    fun dismiss() {
+        cancelGeneration()
+        releaseConversation()
+        releaseEngine()
     }
 
     private fun releaseConversation() {
@@ -178,7 +305,9 @@ class AiWriterViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        // A leaked engine keeps gigabytes resident after the sheet is gone.
+        // Safety net for destruction paths that never went through dismiss(). Idempotent: both
+        // releases null out their handles, and cancelling a finished conversation is a no-op.
+        cancelGeneration()
         releaseConversation()
         releaseEngine()
     }

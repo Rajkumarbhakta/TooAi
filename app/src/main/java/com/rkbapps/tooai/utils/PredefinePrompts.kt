@@ -11,6 +11,16 @@ object PredefinePrompts {
     const val SUMMARY_SHORT_PARAGRAPH = "Please summarize the following in short paragraph (1-2 sentences): "
     const val SUMMARY_CONCISE = "Please summarize the following in concise summary (~50 words): "
 
+    const val PROOFREAD_GRAMMAR =
+        "Correct only the spelling, grammar, and punctuation in the following text. " +
+            "Keep the original wording, tone, and meaning, and do not rephrase anything: "
+    const val PROOFREAD_CLARITY =
+        "Correct the spelling, grammar, and punctuation in the following text, and rephrase any " +
+            "unclear or awkward parts so it reads smoothly. Keep the original meaning: "
+    const val PROOFREAD_CONCISE =
+        "Correct the spelling, grammar, and punctuation in the following text, then tighten it by " +
+            "removing redundancy and filler. Keep the original meaning: "
+
     const val CODE_SNIPPET_CPP = "Write a C++ code snippet to "
     const val CODE_SNIPPET_JAVA = "Write a Java code snippet to "
     const val CODE_SNIPPET_JAVA_SCRIPT= "Write a JavaScript code snippet to "
@@ -52,6 +62,22 @@ object PredefinePrompts {
             subType = SummaryPromptType.Concise.displayString,
             prompt = SUMMARY_CONCISE
         ),
+        // proofread
+        Prompts(
+            type = TypeOfPrompt.Proofread,
+            subType = ProofreadPromptType.Grammar.displayString,
+            prompt = PROOFREAD_GRAMMAR
+        ),
+        Prompts(
+            type = TypeOfPrompt.Proofread,
+            subType = ProofreadPromptType.Clarity.displayString,
+            prompt = PROOFREAD_CLARITY
+        ),
+        Prompts(
+            type = TypeOfPrompt.Proofread,
+            subType = ProofreadPromptType.Concise.displayString,
+            prompt = PROOFREAD_CONCISE
+        ),
         // code snippet
         Prompts(
             type = TypeOfPrompt.CodeSnippet,
@@ -90,6 +116,7 @@ object PredefinePrompts {
 enum class TypeOfPrompt(val displayString: String) {
     Rewrite("Rewrite"),
     Summary("Summary"),
+    Proofread("Proofread"),
     CodeSnippet("Code Snippet")
 }
 
@@ -111,6 +138,13 @@ enum class RewritePromptType(val displayString: String) {
 enum class SummaryPromptType(val displayString: String) {
     BulletPoint("Bullet points"),
     ShortParagraph("Short paragraph"),
+    Concise("Concise")
+}
+
+/** Escalating levels of intervention: fix errors only, then smooth it, then tighten it. */
+enum class ProofreadPromptType(val displayString: String) {
+    Grammar("Grammar"),
+    Clarity("Clarity"),
     Concise("Concise")
 }
 

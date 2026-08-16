@@ -57,17 +57,10 @@ class AiWriterActivity : ComponentActivity() {
         val readOnly = intent?.getBooleanExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, false) ?: true
         val canReplace = intent?.action == Intent.ACTION_PROCESS_TEXT && !readOnly
 
-        val isSystemTheme = preferenceManager
-            .getBooleanPreference(PreferenceManager.IS_USE_SYSTEM_THEME, true)
-            .stateIn(lifecycleScope, SharingStarted.Lazily, true)
-
-        val isDarkTheme = preferenceManager
-            .getBooleanPreference(PreferenceManager.IS_DARK_THEME, false)
-            .stateIn(lifecycleScope, SharingStarted.Lazily, false)
 
         setContent {
-            val useSystemTheme by isSystemTheme.collectAsStateWithLifecycle()
-            val darkTheme by isDarkTheme.collectAsStateWithLifecycle()
+            val useSystemTheme by viewModel.isSystemTheme.collectAsStateWithLifecycle()
+            val darkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
             val state by viewModel.state.collectAsStateWithLifecycle()
 
             LaunchedEffect(Unit) { viewModel.start(sourceText, canReplace) }
@@ -80,24 +73,45 @@ class AiWriterActivity : ComponentActivity() {
                     onSelectModel = viewModel::selectModel,
                     onRunPrompt = viewModel::runPrompt,
                     onReplace = ::replaceAndFinish,
-                    onCopy = { result ->
-                        copyText(result)
-                        finish()
-                    },
+                    onCopy = { result -> copyText(result) },
+                    onShare = ::shareResult,
+                    onRegenerate = viewModel::regenerate,
+                    onShowVariant = viewModel::showVariant,
                     onRetry = viewModel::retry,
                     onStop = viewModel::stop,
-                    onBack = viewModel::reset,
+                    onPromptTextChange = viewModel::updatePromptText,
+                    onToggleContext = viewModel::setUseSourceAsContext,
+                    onGenerate = viewModel::runFreeform,
                     onImportModel = ::openModelManager,
+                    onCurrentPageChange = viewModel::onCurrentPageChange,
                     onDismiss = ::finish
                 )
             }
         }
     }
 
+    /**
+     * Every exit route lands here — the sheet's close button, swipe-to-dismiss, system back,
+     * Replace, and the model-manager hand-off — so releasing the engine here means no path can
+     * leave the model resident.
+     */
+    override fun finish() {
+        viewModel.dismiss()
+        super.finish()
+    }
+
     /** Hands the text back to the calling app, which writes it over the user's selection. */
     private fun replaceAndFinish(result: String) {
         setResult(RESULT_OK, Intent().putExtra(Intent.EXTRA_PROCESS_TEXT, result))
         finish()
+    }
+
+    private fun shareResult(result: String) {
+        val send = Intent(Intent.ACTION_SEND).apply {
+            putExtra(Intent.EXTRA_TEXT, result)
+            type = "text/plain"
+        }
+        startActivity(Intent.createChooser(send, null))
     }
 
     private fun openModelManager() {

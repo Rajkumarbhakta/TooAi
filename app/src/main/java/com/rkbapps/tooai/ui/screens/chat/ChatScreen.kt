@@ -441,32 +441,15 @@ fun ChatMessageItem(
     }
 }
 
-fun getPromptTypeIfApplied(message:String): TypeOfPrompt?{
-    when{
-        message.startsWith(PredefinePrompts.REWRITE_FORMAL) ||
-                message.startsWith(PredefinePrompts.REWRITE_FRIENDLY) ||
-                message.startsWith(PredefinePrompts.REWRITE_FRIENDLY) ->{
-            return TypeOfPrompt.Rewrite
-        }
-        message.startsWith(PredefinePrompts.SUMMARY_BULLET_POINT) ||
-        message.startsWith(PredefinePrompts.SUMMARY_CONCISE) ||
-        message.startsWith(PredefinePrompts.SUMMARY_SHORT_PARAGRAPH) ->{
-            return TypeOfPrompt.Summary
-        }
-        message.startsWith(PredefinePrompts.CODE_SNIPPET_CPP) ||
-                message.startsWith(PredefinePrompts.CODE_SNIPPET_JAVA) ||
-                message.startsWith(PredefinePrompts.CODE_SNIPPET_KOTLIN) ||
-                message.startsWith(PredefinePrompts.CODE_SNIPPET_PYTHON) ||
-                message.startsWith(PredefinePrompts.CODE_SNIPPET_SWIFT) ||
-                message.startsWith(PredefinePrompts.CODE_SNIPPET_JAVA_SCRIPT) ||
-                message.startsWith(PredefinePrompts.CODE_SNIPPET_JAVA_SCRIPT) -> {
-                    return TypeOfPrompt.CodeSnippet
-                }
-        else ->{
-            return  null
-        }
-    }
-}
+/**
+ * Derived from [PredefinePrompts.listOfPrompts] rather than a hand-written list of prefixes, so it
+ * cannot drift as prompts are added. Matches [removePromptIfApplied] exactly — the two must agree,
+ * or a message keeps its raw prompt prefix on screen.
+ */
+fun getPromptTypeIfApplied(message: String): TypeOfPrompt? =
+    PredefinePrompts.listOfPrompts
+        .firstOrNull { message.startsWith(it.prompt, ignoreCase = true) }
+        ?.type
 
 fun removePromptIfApplied(message: String): String{
     val isApplied = PredefinePrompts.listOfPrompts.any { message.startsWith(it.prompt,ignoreCase = true) }
