@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,8 +21,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.BottomAppBarDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,13 +28,15 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -52,17 +51,18 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.halilibo.richtext.commonmark.Markdown
 import com.halilibo.richtext.ui.material3.RichText
 import com.rkbapps.tooai.R
+import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.ui.composabels.TopBar
 import com.rkbapps.tooai.utils.PredefinePrompts
 import com.rkbapps.tooai.utils.Prompts
@@ -187,18 +187,20 @@ fun ChatScreen(
                         )
                     )
                     Row(
-                        modifier = Modifier.padding(horizontal = 16.dp,)
+                        modifier = Modifier.padding(horizontal = 16.dp,),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        if (state.currentPromptType==null){
-                            Icon(
-                                painter = painterResource(R.drawable.tune),"",
-                                modifier = Modifier.clickable{showPromptSheet = true}
-                            )
-                        }else{
-                            state.currentPromptType?.let { prompt->
-                                PromptChip(prompt = prompt, showClose = true) {
-                                    viewModel.selectAPredefinePrompt(null)
-                                }
+                        // Always available, so the sheet can be reopened to swap the active
+                        // prompt instead of having to clear it first.
+                        Icon(
+                            painter = painterResource(R.drawable.tune),
+                            contentDescription = "Prompt suggestions",
+                            modifier = Modifier.clickable{showPromptSheet = true}
+                        )
+                        state.currentPromptType?.let { prompt->
+                            PromptChip(prompt = prompt, showClose = true) {
+                                viewModel.selectAPredefinePrompt(null)
                             }
                         }
                     }
@@ -209,86 +211,38 @@ fun ChatScreen(
 
         // Bottom Sheet for model selection
         if (showModelSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showModelSheet = false },
-                sheetState = sheetState
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 32.dp)
-                ) {
-                    Text(
-                        "Available Models",
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.padding(bottom = 16.dp)
+            ChatModelSelectionSheet(
+                sheetState = sheetState,
+                llmModels = llmModels,
+                selectedModel = state.llmModel,
+                onSheetDismiss = { showModelSheet = false  },
+            ){model ->
+                state.sessionId?.let { sessionId ->
+                    viewModel.loadSession(
+                        sessionId = sessionId,
+                        modelId = model.id
                     )
-
-                    LazyColumn(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(
-                            llmModels,
-                            key = { it.id }
-                        ) { model ->
-                            ModelListItem(
-                                model = model,
-                                isSelected = state.llmModel?.id == model.id,
-                                onSelectModel = {
-                                    state.sessionId?.let {sessionId->
-                                        viewModel.loadSession(sessionId = sessionId, modelId=model.id)
-                                        scope.launch {
-                                            sheetState.hide()
-                                            showModelSheet = false
-                                        }
-                                    }
-                                }
-                            )
-                        }
+                    scope.launch {
+                        sheetState.hide()
+                        showModelSheet = false
                     }
                 }
             }
         }
         //prompt bottom sheet
         if (showPromptSheet){
-            ModalBottomSheet(
-                onDismissRequest = { showPromptSheet = false },
+            ChatPromptSuggestionSheet(
                 sheetState = promptSheetState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = innerPadding.calculateTopPadding()),
-            ) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(
-                        PredefinePrompts.listOfPrompts,
-                        key = { it.subType }
-                    ) { prompt ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(
-                                    color =
-                                        if (state.currentPromptType == prompt) MaterialTheme.colorScheme.primaryContainer
-                                        else MaterialTheme.colorScheme.secondaryContainer
-                                )
-                                .clickable {
-                                    viewModel.selectAPredefinePrompt(prompt)
-                                    scope.launch {
-                                        promptSheetState.hide()
-                                        showPromptSheet = false
-                                    }
-                                }
-                                .padding(16.dp)
-                        ){
-                            Text("${prompt.type.displayString} : ${prompt.subType}")
-                        }
-                    }
+                topPadding = innerPadding.calculateTopPadding(),
+                selectedPrompt = state.currentPromptType,
+                onSheetDismiss = {
+                    showPromptSheet = false
+                }
+            ){prompt ->
+                viewModel.selectAPredefinePrompt(prompt)
+                scope.launch {
+                    promptSheetState.hide()
+                    showPromptSheet = false
                 }
             }
         }
@@ -382,7 +336,9 @@ fun ChatMessageItem(
 
             if (message.isResponding){
                 CircularProgressIndicator(
-                    modifier = Modifier.padding(8.dp).size(24.dp),
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .size(24.dp),
                     strokeWidth = 3.dp
                 )
             }else{
@@ -535,10 +491,141 @@ fun PromptChip(
             .clickable(onClick = onClick)
             .padding(4.dp)
     ){
-        Text(prompt.type.name + (if(prompt.subType.isNotBlank())" : ${prompt.subType}" else ""), color = MaterialTheme.colorScheme.onPrimary)
+        Text(prompt.type.displayString + (if(prompt.subType.isNotBlank())" : ${prompt.subType}" else ""), color = MaterialTheme.colorScheme.onPrimary)
         if (showClose)
         Icon(painter = painterResource(R.drawable.close),"", tint = MaterialTheme.colorScheme.onPrimary)
     }
+}
+
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+fun ChatPromptSuggestionSheet(
+    sheetState: SheetState,
+    topPadding: Dp,
+    selectedPrompt: Prompts?,
+    onSheetDismiss: () -> Unit,
+    onPromptSelection:(prompt: Prompts?)-> Unit,
+) {
+    val groupedPrompts = remember { PredefinePrompts.listOfPrompts.groupBy { it.type } }
+
+    ModalBottomSheet(
+        onDismissRequest = onSheetDismiss,
+        sheetState = sheetState,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = topPadding),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 12.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Prompt suggestions",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Text(
+                        "Added in front of your next message",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                AnimatedVisibility(visible = selectedPrompt != null) {
+                    TextButton(onClick = { onPromptSelection(null) }) {
+                        Text("Clear")
+                    }
+                }
+            }
+
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                groupedPrompts.forEach { (type, prompts) ->
+                    item(key = "header-${type.name}") {
+                        Text(
+                            text = type.displayString,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 16.dp, bottom = 2.dp)
+                        )
+                    }
+                    items(
+                        prompts,
+                        // subType alone is not unique across types, so qualify it.
+                        key = { "${type.name}-${it.subType}" }
+                    ) { prompt ->
+                        PromptSuggestionItem(
+                            prompt = prompt,
+                            isSelected = selectedPrompt == prompt,
+                            onClick = { onPromptSelection(prompt) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PromptSuggestionItem(
+    modifier: Modifier = Modifier,
+    prompt: Prompts,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val containerColor by animateColorAsState(
+        if (isSelected) MaterialTheme.colorScheme.primaryContainer
+        else MaterialTheme.colorScheme.surfaceContainerHighest
+    )
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = containerColor,
+            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+            else MaterialTheme.colorScheme.onSurface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = prompt.subType,
+                    style = MaterialTheme.typography.titleSmall
+                )
+//                Text(
+//                    text = prompt.previewText(),
+//                    style = MaterialTheme.typography.bodySmall,
+//                    color = LocalContentColor.current.copy(alpha = 0.7f),
+//                    maxLines = 2,
+//                    overflow = TextOverflow.Ellipsis
+//                )
+            }
+            // onClick = null so the whole card stays the single tap target.
+            RadioButton(selected = isSelected, onClick = null)
+        }
+    }
+}
+
+/**
+ * The stored prompts are prefixes ("... using a formal tone: ", "Write a Kotlin code snippet to ").
+ * Show them as readable descriptions instead of raw templates.
+ */
+private fun Prompts.previewText(): String {
+    val trimmed = prompt.trim()
+    return if (trimmed.endsWith(":")) trimmed.dropLast(1).trim() else "$trimmed…"
 }
 
 
@@ -583,10 +670,56 @@ fun ChatActionButtons(
     }
 }
 
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+fun ChatModelSelectionSheet(
+    sheetState: SheetState,
+    llmModels:  List<LlmModel>,
+    selectedModel: LlmModel?,
+    onSheetDismiss:()-> Unit,
+    onModelSelect:(model: LlmModel)-> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onSheetDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                "Available Models",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(
+                    llmModels,
+                    key = { it.id }
+                ) { model ->
+                    ModelListItem(
+                        model = model,
+                        isSelected = selectedModel?.id == model.id,
+                        onSelectModel = {
+                            onModelSelect(model)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun ModelListItem(
     modifier: Modifier = Modifier,
-    model: com.rkbapps.tooai.db.entity.LlmModel,
+    model: LlmModel,
     isSelected: Boolean,
     onSelectModel: () -> Unit
 ) {

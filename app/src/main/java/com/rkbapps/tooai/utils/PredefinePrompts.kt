@@ -25,61 +25,61 @@ object PredefinePrompts {
         //rewrite
         Prompts(
             type = TypeOfPrompt.Rewrite,
-            subType = RewritePromptType.Formal.name,
+            subType = RewritePromptType.Formal.displayString,
             prompt = REWRITE_FORMAL
         ),
         Prompts(
             type = TypeOfPrompt.Rewrite,
-            subType = RewritePromptType.Casual.name,
+            subType = RewritePromptType.Casual.displayString,
             prompt = REWRITE_CASUAL
         ),
         Prompts(
             type = TypeOfPrompt.Rewrite,
-            subType = RewritePromptType.Friendly.name,
+            subType = RewritePromptType.Friendly.displayString,
             prompt = REWRITE_FRIENDLY
         ),
         // summary
         Prompts(
             type = TypeOfPrompt.Summary,
-            subType = SummaryPromptType.BulletPoint.name,
+            subType = SummaryPromptType.BulletPoint.displayString,
             prompt = SUMMARY_BULLET_POINT
         ),Prompts(
             type = TypeOfPrompt.Summary,
-            subType = SummaryPromptType.ShortParagraph.name,
+            subType = SummaryPromptType.ShortParagraph.displayString,
             prompt = SUMMARY_SHORT_PARAGRAPH
         ),Prompts(
             type = TypeOfPrompt.Summary,
-            subType = SummaryPromptType.Concise.name,
+            subType = SummaryPromptType.Concise.displayString,
             prompt = SUMMARY_CONCISE
         ),
         // code snippet
         Prompts(
             type = TypeOfPrompt.CodeSnippet,
-            subType = CodeSnippetPromptType.Cpp.name,
+            subType = CodeSnippetPromptType.Cpp.displayString,
             prompt = CODE_SNIPPET_CPP
         ),Prompts(
             type = TypeOfPrompt.CodeSnippet,
-            subType = CodeSnippetPromptType.Java.name,
+            subType = CodeSnippetPromptType.Java.displayString,
             prompt = CODE_SNIPPET_JAVA
         ),Prompts(
             type = TypeOfPrompt.CodeSnippet,
-            subType = CodeSnippetPromptType.Kotlin.name,
+            subType = CodeSnippetPromptType.Kotlin.displayString,
             prompt = CODE_SNIPPET_KOTLIN
         ),Prompts(
             type = TypeOfPrompt.CodeSnippet,
-            subType = CodeSnippetPromptType.Python.name,
+            subType = CodeSnippetPromptType.Python.displayString,
             prompt = CODE_SNIPPET_PYTHON
         ),Prompts(
             type = TypeOfPrompt.CodeSnippet,
-            subType = CodeSnippetPromptType.Swift.name,
+            subType = CodeSnippetPromptType.Swift.displayString,
             prompt = CODE_SNIPPET_SWIFT
         ),Prompts(
             type = TypeOfPrompt.CodeSnippet,
-            subType = CodeSnippetPromptType.TypeScript.name,
+            subType = CodeSnippetPromptType.TypeScript.displayString,
             prompt = CODE_SNIPPET_TYPESCRIPT
         ),Prompts(
             type = TypeOfPrompt.CodeSnippet,
-            subType = CodeSnippetPromptType.JavaScript.name,
+            subType = CodeSnippetPromptType.JavaScript.displayString,
             prompt = CODE_SNIPPET_JAVA_SCRIPT
         ),
 
@@ -102,25 +102,25 @@ data class Prompts(
 
 
 
-enum class RewritePromptType() {
-    Formal,
-    Casual,
-    Friendly
+enum class RewritePromptType(val displayString: String) {
+    Formal("Formal"),
+    Casual("Casual"),
+    Friendly("Friendly")
 }
 
-enum class SummaryPromptType {
-    BulletPoint,
-    ShortParagraph,
-    Concise
+enum class SummaryPromptType(val displayString: String) {
+    BulletPoint("Bullet points"),
+    ShortParagraph("Short paragraph"),
+    Concise("Concise")
 }
 
-enum class CodeSnippetPromptType {
-    Cpp,
-    Java,
-    JavaScript,
-    Kotlin,
-    Python,
-    Swift,
-    TypeScript
+enum class CodeSnippetPromptType(val displayString: String) {
+    Cpp("C++"),
+    Java("Java"),
+    JavaScript("JavaScript"),
+    Kotlin("Kotlin"),
+    Python("Python"),
+    Swift("Swift"),
+    TypeScript("TypeScript")
 }
 

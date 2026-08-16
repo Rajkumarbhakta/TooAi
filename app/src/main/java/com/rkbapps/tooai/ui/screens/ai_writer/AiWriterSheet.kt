@@ -233,20 +233,13 @@ private fun ActionGrid(enabled: Boolean, onRunPrompt: (Prompts) -> Unit) {
                     AssistChip(
                         onClick = { onRunPrompt(prompt) },
                         enabled = enabled,
-                        label = { Text(prompt.subType.toDisplayLabel()) }
+                        label = { Text(prompt.subType) }
                     )
                 }
             }
         }
     }
 }
-
-/**
- * [Prompts.subType] carries the enum name, so it reads "BulletPoint" / "ShortParagraph".
- * Split it back into words for display.
- */
-private fun String.toDisplayLabel(): String =
-    replace(Regex("(?<=[a-z])(?=[A-Z])"), " ").replaceFirstChar { it.uppercase() }
 
 @Composable
 private fun LoadingModel(modelName: String) {
