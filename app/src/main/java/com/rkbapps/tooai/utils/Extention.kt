@@ -15,6 +15,8 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import com.rkbapps.tooai.models.PdfDoc
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.File.separator
 import java.io.FileOutputStream
@@ -46,18 +48,18 @@ fun Context.copyText(text: String) {
         .show()
 }
 
-fun Context.saveImage(bitmap: Bitmap, folderName: String): Boolean {
-    return if (Build.VERSION.SDK_INT >= 29) {
+suspend fun saveImage(context: Context,bitmap: Bitmap, folderName: String): Boolean = withContext(Dispatchers.IO){
+    return@withContext  if (Build.VERSION.SDK_INT >= 29) {
         val values = contentValues()
         values.put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/$folderName")
         values.put(MediaStore.Images.Media.IS_PENDING, true)
         // RELATIVE_PATH and IS_PENDING are introduced in API 29.
         val uri: Uri? =
-            this.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
         if (uri != null) {
-            saveImageToStream(bitmap, this.contentResolver.openOutputStream(uri))
+            saveImageToStream(bitmap, context.contentResolver.openOutputStream(uri))
             values.put(MediaStore.Images.Media.IS_PENDING, false)
-            this.contentResolver.update(uri, values, null, null)
+            context.contentResolver.update(uri, values, null, null)
             true
         } else {
             false
@@ -76,7 +78,7 @@ fun Context.saveImage(bitmap: Bitmap, folderName: String): Boolean {
             val values = contentValues()
             values.put(MediaStore.Images.Media.DATA, file.absolutePath)
             // .DATA is deprecated in API 29
-            this.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
             true
         } else {
             false
@@ -103,7 +105,8 @@ private fun saveImageToStream(bitmap: Bitmap, outputStream: OutputStream?) {
     }
 }
 
-fun savePdfToDocuments(context: Context, sourceUri: Uri,destinationPath: String): PdfDoc? {
+suspend fun savePdfToDocuments(context: Context, sourceUri: Uri,destinationPath: String): PdfDoc? = withContext(
+    Dispatchers.IO) {
     val resolver = context.contentResolver
     val time = System.currentTimeMillis()
     val fileName = "TooAi Scan - $time.pdf"
@@ -117,7 +120,7 @@ fun savePdfToDocuments(context: Context, sourceUri: Uri,destinationPath: String)
 
     val collection = MediaStore.Files.getContentUri("external")
 
-    val itemUri = resolver.insert(collection, contentValues) ?: return null
+    val itemUri = resolver.insert(collection, contentValues) ?: return@withContext null
 
     try {
         resolver.openOutputStream(itemUri)?.use { output ->
@@ -130,7 +133,7 @@ fun savePdfToDocuments(context: Context, sourceUri: Uri,destinationPath: String)
         contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
         resolver.update(itemUri, contentValues, null, null)
 
-        return PdfDoc(
+        return@withContext PdfDoc(
             title = fileName,
             path = itemUri.toString(),
             timeMillis = time
@@ -139,7 +142,7 @@ fun savePdfToDocuments(context: Context, sourceUri: Uri,destinationPath: String)
     } catch (e: Exception) {
         resolver.delete(itemUri, null, null)
         Log.e("SavePdf", "Failed", e)
-        return null
+        return@withContext null
     }
 }
 

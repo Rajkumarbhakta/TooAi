@@ -17,11 +17,14 @@ import com.rkbapps.tooai.utils.ScanModes
 import com.rkbapps.tooai.utils.UiState
 import com.rkbapps.tooai.utils.savePdfToDocuments
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
+import androidx.core.net.toUri
 
 class DocumentScannerRepository @Inject constructor(
     private val documentScanDao: DocumentScansDao,
@@ -62,11 +65,9 @@ class DocumentScannerRepository @Inject constructor(
     }
 
 
-
-
     suspend fun saveDocument(context: Context, uri: Uri) = withContext(Dispatchers.IO){
         _docSavingState.value = UiState(isLoading = true)
-        val doc = savePdfToDocuments(context, sourceUri = uri, "TooAi")
+        val doc = async { savePdfToDocuments(context, sourceUri = uri, "TooAi") }.await()
         if (doc != null){
             val scanDoc = DocumentScans(
                 id = 0,
@@ -79,13 +80,13 @@ class DocumentScannerRepository @Inject constructor(
         }else{
             _docSavingState.value = UiState(error = "Unable to save PDF.")
         }
-        delay(1000)
+        delay(1000.milliseconds)
         _docSavingState.value = UiState()
     }
 
-    suspend fun deleteDocument(context: Context,documentScan: DocumentScans){
+    suspend fun deleteDocument(context: Context,documentScan: DocumentScans) = withContext(Dispatchers.IO){
         try {
-            context.contentResolver.delete(Uri.parse(documentScan.path), null, null) > 0
+            context.contentResolver.delete(documentScan.path.toUri(), null, null) > 0
         } catch (e: Exception) {
             e.printStackTrace()
         }
