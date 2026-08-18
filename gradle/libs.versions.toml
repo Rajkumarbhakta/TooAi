@@ -27,7 +27,7 @@ subjectSegmentation = "16.0.0-beta1"
 
 playServicesMlkit = "16.0.0"
 
-liteRtLm = "0.16.0"
+liteRtLm = "0.16.1"
 
 coroutine = "1.11.0"
 
