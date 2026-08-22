@@ -126,7 +126,7 @@ fun ImageSegmentationScreen(
 
     // Show error as Toast
     LaunchedEffect(segState.error) {
-        withContext(Dispatchers.IO){
+        withContext(Dispatchers.Main){
             segState.error?.let { error ->
                 Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
             }
