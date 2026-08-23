@@ -11,7 +11,7 @@ Navigation 3 · LiteRT-LM.
 ## Build & run
 
 ```sh
-sh gradlew :app:assembleDebug          # NOTE: gradlew is not executable — ./gradlew fails
+./gradlew :app:assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
@@ -28,6 +28,37 @@ adb shell "am start -a android.intent.action.PROCESS_TEXT -t text/plain \
 ```
 
 Quote the whole `am start` for the remote shell or spaces in the extra get word-split.
+
+Unit tests are `./gradlew testDebugUnitTest`. AGP 9 only configures unit tests for the **debug**
+variant — `testReleaseUnitTest` does not exist.
+
+---
+
+## Releasing
+
+`.github/workflows/android_release.yml` builds a signed release APK on every push to `master` and
+attaches it to a GitHub Release. No manual build or upload.
+
+The tag is `v<versionName>`, read out of `app/build.gradle.kts`. **If that tag already exists the
+release is skipped and the job still ends green** — so publishing a release means bumping
+`versionCode` *and* `versionName` first. Pushing anything else to master is harmless.
+
+Signing: the workflow base64-decodes `secrets.KEYSTORE_BASE64` to `app/release.keystore`, which is
+what `signingConfigs` at `app/build.gradle.kts:31-41` looks for; passwords come from
+`KEY_STORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`. Local key is
+`~/dev/keystore/tooai_keystore.jks`, alias `key0`, cert `CN=Rajkumar Bhakta, O=RKB APPS`.
+
+Two traps that guard rails now exist for — don't remove them:
+
+- The signing config only applies `if (keystoreFile.exists())`, so a missing secret yields a
+  silently **unsigned** APK rather than an error. The workflow asserts every secret is non-empty
+  before building, and rejects `app-release-unsigned.apk` after.
+- The keystore is decoded *before* the test run, so every Gradle invocation in the job sees it. If
+  it appeared only later, a reused configuration cache could pin the "no keystore" branch.
+
+`*.keystore`/`*.jks`, `app/release/`, and `gradle/gradle-daemon-jvm.properties` are gitignored. The
+last one pins `toolchainVendor=JETBRAINS`; committing it makes CI reject Temurin and re-download a
+JetBrains Runtime every run.
 
 ---
 
