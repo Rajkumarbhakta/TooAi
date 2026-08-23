@@ -70,6 +70,8 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -77,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import com.rkbapps.tooai.R
 import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.utils.Prompts
+import com.rkbapps.tooai.utils.rememberClickGate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,6 +103,18 @@ fun AiWriterSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    // One gate for the whole sheet: every one of these starts or restarts on-device inference, and
+    // two in quick succession — a double-tapped chip, or a chip followed by Regenerate — means two
+    // runs racing. Sharing the window covers different buttons hit back to back, not just repeats
+    // of the same one.
+    val gate = rememberClickGate()
+    val onRunPromptDebounced: (Prompts) -> Unit = { gate { onRunPrompt(it) } }
+    val onRegenerateDebounced: () -> Unit = { gate { onRegenerate() } }
+    val onRetryDebounced: () -> Unit = { gate { onRetry() } }
+    val onGenerateDebounced: () -> Unit = { gate { onGenerate() } }
+    val onReplaceDebounced: (String) -> Unit = { gate { onReplace(it) } }
+    val onCurrentPageChangeDebounced: (AiWriterPages) -> Unit = { gate { onCurrentPageChange(it) } }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -115,15 +130,20 @@ fun AiWriterSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 // The Write anything page has a text field; without this the IME covers the
-                // composer and its Generate button.
+                // composer and its Generate button. Must stay *outside* the scroll below —
+                // inset padding applied inside a scroll container pads the content instead of
+                // shrinking the viewport, which silently defeats it.
                 .imePadding()
+                // Long results, a keyboard, or a large font scale can overflow the sheet; without
+                // this the bottom of the page (Generate, Replace) becomes unreachable.
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Header(
                 currentPage = state.currentPage,
-                onBack = { onCurrentPageChange(AiWriterPages.HOME) },
+                onBack = { onCurrentPageChangeDebounced(AiWriterPages.HOME) },
                 onDismiss = onDismiss
             )
 
@@ -135,7 +155,7 @@ fun AiWriterSheet(
             when (state.currentPage) {
                 AiWriterPages.HOME -> AiWriterHomePage(
                     state = state,
-                    onAiWriterOptionClick = onCurrentPageChange,
+                    onAiWriterOptionClick = onCurrentPageChangeDebounced,
                     onSelectModel = onSelectModel
                 )
 
@@ -144,27 +164,27 @@ fun AiWriterSheet(
                 AiWriterPages.PROOFREAD -> AiWriterGenerationPage(
                     state = state,
                     onStop = onStop,
-                    onRegenerate = onRegenerate,
-                    onSelectPrompt = onRunPrompt,
+                    onRegenerate = onRegenerateDebounced,
+                    onSelectPrompt = onRunPromptDebounced,
                     onShowVariant = onShowVariant,
                     onCopy = onCopy,
                     onShare = onShare,
-                    onReplace = onReplace,
-                    onRetry = onRetry
+                    onReplace = onReplaceDebounced,
+                    onRetry = onRetryDebounced
                 )
 
                 AiWriterPages.PROMPT -> AiWriterPromptPage(
                     state = state,
                     onPromptTextChange = onPromptTextChange,
                     onToggleContext = onToggleContext,
-                    onGenerate = onGenerate,
+                    onGenerate = onGenerateDebounced,
                     onStop = onStop,
-                    onRegenerate = onRegenerate,
+                    onRegenerate = onRegenerateDebounced,
                     onShowVariant = onShowVariant,
                     onCopy = onCopy,
                     onShare = onShare,
-                    onReplace = onReplace,
-                    onRetry = onRetry
+                    onReplace = onReplaceDebounced,
+                    onRetry = onRetryDebounced
                 )
 
 
@@ -601,13 +621,18 @@ private fun ToneChips(
 
 @Composable
 private fun StopButton(onStop: () -> Unit) {
+    val label = stringResource(R.string.ai_writer_stop)
     Box(
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
         FilledIconButton(
             onClick = onStop,
-            modifier = Modifier.size(56.dp),
+            // The button's content is a bare Box rather than an Icon, so there is no
+            // contentDescription to inherit — without this it is unlabelled for TalkBack.
+            modifier = Modifier
+                .size(56.dp)
+                .semantics { contentDescription = label },
             colors = iconButtonStopColors()
         ) {
             // A plain square reads as "stop" without needing another vector asset.
@@ -805,8 +830,20 @@ fun AiWriterHomePage(
 
         HorizontalDivider()
 
+        // Free-form writing works from an instruction alone, so it stays available even with
+        // nothing selected.
         AiWriterFullWidthCard {
             onAiWriterOptionClick(AiWriterPages.PROMPT)
+        }
+
+        // The three below only transform the caller's selection. Say why they are unavailable
+        // rather than leaving three dead cards.
+        if (!state.hasSourceText) {
+            Text(
+                text = stringResource(R.string.ai_writer_no_text),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         Row(
@@ -818,20 +855,23 @@ fun AiWriterHomePage(
                 modifier = Modifier.weight(1f),
                 text = stringResource(R.string.ai_writer_page_polish),
                 icon = R.drawable.ai_polish_text_icon,
+                enabled = state.hasSourceText
             ) {
                 onAiWriterOptionClick(AiWriterPages.POLISH)
             }
             AiWriterOptionCard(
                 modifier = Modifier.weight(1f),
                 text = stringResource(R.string.ai_writer_page_summarize),
-                icon = R.drawable.ai_summarize_icon
+                icon = R.drawable.ai_summarize_icon,
+                enabled = state.hasSourceText
             ) {
                 onAiWriterOptionClick(AiWriterPages.SUMMARIZE)
             }
             AiWriterOptionCard(
                 modifier = Modifier.weight(1f),
                 text = stringResource(R.string.ai_writer_page_proofread),
-                icon = R.drawable.ai_proofread_icon
+                icon = R.drawable.ai_proofread_icon,
+                enabled = state.hasSourceText
             ) {
                 onAiWriterOptionClick(AiWriterPages.PROOFREAD)
             }
@@ -853,8 +893,14 @@ fun AiWriterFullWidthCard(modifier: Modifier = Modifier, onCLick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text("Write anything", style = MaterialTheme.typography.titleMedium)
-                Text("Create content with a prompt", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    text = stringResource(R.string.ai_writer_page_prompt),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = stringResource(R.string.ai_writer_page_prompt_subtitle),
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             Image(
@@ -871,11 +917,13 @@ fun AiWriterOptionCard(
     modifier: Modifier = Modifier,
     text: String,
     icon: Int,
+    enabled: Boolean = true,
     onCLick: () -> Unit
 ) {
     Card(
         modifier = modifier,
-        onClick = onCLick
+        onClick = onCLick,
+        enabled = enabled
     ) {
         Column(
             modifier = Modifier
@@ -916,7 +964,7 @@ private fun Header(
             IconButton(onClick = onBack) {
                 Icon(
                     painter = painterResource(R.drawable.arrow_back),
-                    contentDescription = "Navigate up",
+                    contentDescription = stringResource(R.string.ai_writer_back),
                 )
             }
         }
@@ -934,7 +982,7 @@ private fun Header(
         ) {
             Icon(
                 painter = painterResource(R.drawable.close),
-                contentDescription = "Close"
+                contentDescription = stringResource(R.string.ai_writer_close)
             )
         }
     }
@@ -958,7 +1006,7 @@ private fun ModelSelector(
             )
         ) {
             Text(
-                text = selected?.displayName ?: "Select a model",
+                text = selected?.displayName ?: stringResource(R.string.ai_writer_select_model),
                 maxLines = 1,
                 overflow = TextOverflow.MiddleEllipsis
             )
@@ -980,18 +1028,6 @@ private fun ModelSelector(
             }
         }
     }
-}
-
-@Composable
-private fun ComingSoonContent() {
-    Text(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 32.dp),
-        text = stringResource(R.string.ai_writer_coming_soon),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
 }
 
 @Composable

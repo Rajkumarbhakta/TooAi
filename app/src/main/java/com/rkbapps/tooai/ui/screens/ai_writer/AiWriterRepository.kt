@@ -11,7 +11,6 @@ import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.SamplerConfig
-import com.google.android.datatransport.runtime.backends.BackendFactory
 import com.rkbapps.tooai.db.dao.LlmModelDao
 import com.rkbapps.tooai.db.entity.LlmModel
 import kotlinx.coroutines.Dispatchers
@@ -61,18 +60,22 @@ class AiWriterRepository @Inject constructor(
         }
     }
 
-    /** A fresh conversation per action, so actions don't influence each other. */
-    suspend fun newConversation(engine: Engine, model: LlmModel): Result<Conversation> =
+    /**
+     * A fresh conversation per action, so actions don't influence each other.
+     *
+     * The sampler is chosen by the caller rather than read off the model row, because decoding
+     * settings are per-task here — see [samplerFor].
+     */
+    suspend fun newConversation(
+        engine: Engine,
+        samplerConfig: SamplerConfig
+    ): Result<Conversation> =
         withContext(Dispatchers.IO) {
             try {
                 Result.success(
                     engine.createConversation(
                         ConversationConfig(
-                            samplerConfig = SamplerConfig(
-                                temperature = model.temperature,
-                                topK = model.topK,
-                                topP = model.topP
-                            ),
+                            samplerConfig = samplerConfig,
                             systemInstruction = Contents.of(SYSTEM_PROMPT)
                         )
                     )

@@ -9,15 +9,12 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.lifecycleScope
 import com.rkbapps.tooai.db.PreferenceManager
 import com.rkbapps.tooai.ui.screens.ai_writer.AiWriterSheet
 import com.rkbapps.tooai.ui.screens.ai_writer.AiWriterViewModel
 import com.rkbapps.tooai.ui.theme.TooAiTheme
 import com.rkbapps.tooai.utils.copyText
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 /**

@@ -1,7 +1,6 @@
 package com.rkbapps.tooai.ui.screens.ai_writer
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.Engine
@@ -10,7 +9,11 @@ import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.utils.Prompts
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,7 +39,13 @@ class AiWriterViewModel @Inject constructor(
         .getBooleanPreference(PreferenceManager.IS_DARK_THEME, false)
         .stateIn(viewModelScope, SharingStarted.Lazily, false)
 
-    /** Held across actions so a second action doesn't reload the model. Closed in [onCleared]. */
+    /**
+     * Frees the native handles after the decode coroutine has unwound. Separate from
+     * [viewModelScope] because it must outlive the ViewModel — see [dismiss].
+     */
+    private val teardownScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Held across actions so a second action doesn't reload the model. Closed in [dismiss]. */
     private var engine: Engine? = null
     private var engineModelId: Long? = null
     private var conversation: Conversation? = null
@@ -72,8 +81,15 @@ class AiWriterViewModel @Inject constructor(
     /**
      * Navigates to [page]. Generation pages start from a clean variant list and immediately run
      * their default prompt, so the user lands on a result rather than an empty card.
+     *
+     * Refuses to open a generation page with nothing to work on — those pages exist only to
+     * transform the caller's selection, and running one anyway would send a dangling instruction
+     * and let the model invent its own subject. The home page already disables those cards, so this
+     * is a guard rather than a path a user can reach.
      */
     fun onCurrentPageChange(page: AiWriterPages) {
+        if (page.isGenerationPage() && !_state.value.hasSourceText) return
+
         // Leaving a page mid-generation must stop the model, not just detach the UI from it.
         cancelGeneration()
         variants.clear()
@@ -89,7 +105,7 @@ class AiWriterViewModel @Inject constructor(
         }
         // The free-form page has nothing to run until the user types something.
         if (page.isGenerationPage() && prompt != null) {
-            run(prompt.prompt + _state.value.sourceText)
+            run(composePrompt(prompt.prompt, _state.value.sourceText))
         }
     }
 
@@ -114,20 +130,12 @@ class AiWriterViewModel @Inject constructor(
         // No tone chips on this page, so nothing owns activePrompt.
         _state.update { it.copy(activePrompt = null) }
         run(
-            composeFreeform(
+            composePrompt(
                 instruction = instruction,
-                source = current.sourceText,
-                useContext = current.useSourceAsContext
+                source = current.sourceText.takeIf { current.useSourceAsContext }
             )
         )
     }
-
-    private fun composeFreeform(instruction: String, source: String, useContext: Boolean): String =
-        if (useContext && source.isNotBlank()) {
-            "$instruction\n\nText:\n$source"
-        } else {
-            instruction
-        }
 
     fun showVariant(index: Int) {
         if (index !in variants.indices) return
@@ -145,11 +153,11 @@ class AiWriterViewModel @Inject constructor(
 
     fun selectModel(model: LlmModel) {
         if (_state.value.selectedModel?.id == model.id) return
-        // The loaded engine belongs to the old model — drop it so the next action reloads.
-        cancelGeneration()
+        // The loaded engine belongs to the old model — drop it so the next action reloads. Goes
+        // through the same deferred teardown as dismiss: switching models mid-generation would
+        // otherwise free the engine out from under a running decode.
+        releaseNativeResources()
         variants.clear()
-        releaseConversation()
-        releaseEngine()
         _state.update { it.copy(selectedModel = model, stage = AiWriterState.Stage.Idle) }
         viewModelScope.launch {
             preferenceManager.saveLongPreference(PreferenceManager.LAST_USED_MODEL_ID, model.id)
@@ -157,8 +165,9 @@ class AiWriterViewModel @Inject constructor(
     }
 
     fun runPrompt(prompt: Prompts) {
+        if (!_state.value.hasSourceText) return
         _state.update { it.copy(activePrompt = prompt) }
-        run(prompt.prompt + _state.value.sourceText)
+        run(composePrompt(prompt.prompt, _state.value.sourceText))
     }
 
     fun retry() {
@@ -181,14 +190,32 @@ class AiWriterViewModel @Inject constructor(
      * free-form page share one path — and so [regenerate] and [retry] can replay either.
      */
     private fun run(fullPrompt: String) {
-        val model = _state.value.selectedModel ?: return
+        val model = _state.value.selectedModel
+        if (model == null) {
+            _state.update { it.copy(stage = AiWriterState.Stage.Error("No model selected.")) }
+            return
+        }
+        // Resolved here rather than inside the coroutine so a page change mid-load cannot swap the
+        // policy out from under a run that has already started.
+        val sampler = samplerFor(_state.value.currentPage, model)
         lastFullPrompt = fullPrompt
-        generationJob?.cancel()
+
+        // Starting a second run while one is in flight — a double-tapped chip or Regenerate — used
+        // to SIGSEGV inside liblitertlm_jni: cancelling the coroutine only unsubscribes from the
+        // flow, so releaseConversation() below could close a Conversation whose native decode was
+        // still reading it. Stop the native process first, then wait for the old collector to
+        // unwind, and only then let anything free it.
+        val previous = generationJob
+        conversation?.let { repository.cancel(it) }
+        previous?.cancel()
+
         generationJob = viewModelScope.launch {
+            previous?.join()
+
             val activeEngine = ensureEngine(model) ?: return@launch
 
             releaseConversation()
-            val newConversation = repository.newConversation(activeEngine, model)
+            val newConversation = repository.newConversation(activeEngine, sampler)
                 .getOrElse { error ->
                     _state.update {
                         it.copy(stage = AiWriterState.Stage.Error(error.readableMessage()))
@@ -259,56 +286,82 @@ class AiWriterViewModel @Inject constructor(
      *
      * Cancelling the coroutine alone only unsubscribes from the flow — the native LiteRT decode
      * keeps running and burning CPU, so the conversation has to be cancelled too.
+     *
+     * The job reference is deliberately kept: [run] joins it before freeing the conversation, and
+     * clearing it here would let a page change slip a close past that wait. A finished job costs
+     * nothing to hold.
      */
     private fun cancelGeneration() {
         conversation?.let { repository.cancel(it) }
         generationJob?.cancel()
-        generationJob = null
     }
 
     /**
-     * Called when the sheet is dismissed. Releases the model straight away rather than waiting for
-     * [onCleared] to run after the activity finishes — the engine holds gigabytes.
+     * Called when the sheet is dismissed. Releases the model rather than waiting for [onCleared] to
+     * run after the activity finishes — the engine holds gigabytes.
+     *
+     * Closing cannot happen inline: cancelling the coroutine and calling `cancelProcess()` do not
+     * synchronously stop the native decode, so freeing the Conversation here crashed
+     * liblitertlm_jni with a null dereference when the sheet was dismissed mid-generation. The
+     * handles are detached immediately and freed once the decode coroutine has unwound.
      */
-    fun dismiss() {
-        cancelGeneration()
-        releaseConversation()
-        releaseEngine()
+    fun dismiss() = releaseNativeResources()
+
+    /**
+     * Stops generation and frees the engine and conversation, deferring the actual `close()` until
+     * the decode coroutine has unwound.
+     */
+    private fun releaseNativeResources() {
+        val job = generationJob
+        val closingConversation = conversation
+        val closingEngine = engine
+
+        // Tell the native side to stop before anything is freed.
+        closingConversation?.let { repository.cancel(it) }
+        job?.cancel()
+
+        // Detach first, so a re-entrant call (onCleared after dismiss) cannot free them twice.
+        generationJob = null
+        conversation = null
+        engine = null
+        engineModelId = null
+
+        if (closingConversation == null && closingEngine == null) return
+
+        // Deliberately not viewModelScope: on dismiss the activity is already finishing, and a
+        // cancelled teardown would strand the engine's gigabytes for the life of the process.
+        teardownScope.launch {
+            withTimeoutOrNull(TEARDOWN_JOIN_TIMEOUT_MS) { job?.join() }
+            closingConversation?.let { repository.close(it) }
+            closingEngine?.let { repository.close(it) }
+        }
     }
 
+    /**
+     * Only safe from inside [run], which has already joined the previous decode coroutine. Every
+     * other caller must go through [releaseNativeResources].
+     */
     private fun releaseConversation() {
         conversation?.let { repository.close(it) }
         conversation = null
     }
 
-    private fun releaseEngine() {
-        engine?.let { repository.close(it) }
-        engine = null
-        engineModelId = null
-    }
-
-    /**
-     * Small models often ignore the "no fences, no quotes" instruction. Since the result is pasted
-     * back into a plain text field, strip the common wrappers rather than shipping them.
-     */
-    private fun sanitize(raw: String): String {
-        var text = raw.trim()
-        if (text.startsWith("```")) {
-            text = text.removePrefix("```").substringAfter('\n', "").trim()
-            text = text.removeSuffix("```").trim()
-        }
-        if (text.length > 1 && text.startsWith('"') && text.endsWith('"')) {
-            text = text.substring(1, text.length - 1).trim()
-        }
-        return text
-    }
-
     override fun onCleared() {
         super.onCleared()
-        // Safety net for destruction paths that never went through dismiss(). Idempotent: both
-        // releases null out their handles, and cancelling a finished conversation is a no-op.
-        cancelGeneration()
-        releaseConversation()
-        releaseEngine()
+        // Safety net for destruction paths that never went through dismiss(). Idempotent — after a
+        // dismiss the handles are already null, so this does nothing.
+        //
+        // teardownScope is intentionally left running: its only job is to free the native handles,
+        // and cancelling it here would strand them. It completes on its own and is then collectable.
+        dismiss()
+    }
+
+    companion object {
+        /**
+         * How long teardown waits for the decode coroutine to unwind before freeing anyway. The
+         * native process has already been cancelled by then; this only covers a decode that is slow
+         * to notice, and the cap stops a wedged one from holding the engine forever.
+         */
+        private const val TEARDOWN_JOIN_TIMEOUT_MS = 3_000L
     }
 }

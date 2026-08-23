@@ -74,6 +74,12 @@ data class AiWriterState(
     /** Models are loaded asynchronously; only treat the list as empty once it has actually loaded. */
     val hasModels: Boolean get() = models.isNotEmpty()
 
+    /**
+     * The tone pages only transform text the caller handed over, so they are unavailable without
+     * it. The free-form page still works — it can write from an instruction alone.
+     */
+    val hasSourceText: Boolean get() = sourceText.isNotBlank()
+
     sealed interface Stage {
         /** Nothing running — the home page, or a generation page before its first run. */
         data object Idle : Stage

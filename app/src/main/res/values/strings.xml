@@ -14,13 +14,15 @@
     <string name="ai_writer_back">Back to actions</string>
     <string name="ai_writer_selected_text">Selected text</string>
     <string name="ai_writer_no_text">No text was selected.</string>
+    <string name="ai_writer_close">Close</string>
+    <string name="ai_writer_select_model">Select a model</string>
 
     <!-- AI Writer pages -->
     <string name="ai_writer_page_prompt">Write anything</string>
+    <string name="ai_writer_page_prompt_subtitle">Create content with a prompt</string>
     <string name="ai_writer_page_polish">Polish</string>
     <string name="ai_writer_page_summarize">Summarize</string>
     <string name="ai_writer_page_proofread">Proofread</string>
-    <string name="ai_writer_coming_soon">Coming soon.</string>
 
     <!-- AI Writer generation page -->
     <string name="ai_writer_share">Share</string>
