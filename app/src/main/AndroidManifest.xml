@@ -19,7 +19,7 @@
             android:value="subject_segment,barcode_ui" />
 
         <activity
-            android:name=".MainActivity"
+            android:name=".activity.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.tooai">
             <intent-filter>
@@ -28,6 +28,31 @@
             </intent-filter>
         </activity>
 
+
+        <!--
+            System-wide AI Writer. PROCESS_TEXT puts it in the text-selection toolbar of every
+            app; SEND is the share-sheet fallback. Do not add launchMode/noHistory here, as both
+            break the startActivityForResult contract PROCESS_TEXT relies on.
+        -->
+        <activity
+            android:name=".activity.AiWriterActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/ai_writer"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:theme="@style/Theme.tooai.Transparent">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
 
         <provider
             android:name="androidx.core.content.FileProvider"

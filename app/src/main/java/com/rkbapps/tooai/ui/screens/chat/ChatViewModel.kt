@@ -1,13 +1,9 @@
 package com.rkbapps.tooai.ui.screens.chat
 
 import android.util.Log
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.serialization.saved
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
-import com.rkbapps.tooai.MainActivity
-import com.rkbapps.tooai.db.entity.LlmModel
+import com.rkbapps.tooai.activity.MainActivity
 import com.rkbapps.tooai.navigation.IdType
 import com.rkbapps.tooai.navigation.NavigationEntry
 import com.rkbapps.tooai.utils.Prompts

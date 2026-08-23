@@ -1,6 +1,5 @@
 package com.rkbapps.tooai.ui.screens.text_recognitation
 
-import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -33,9 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,48 +45,41 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.rkbapps.tooai.R
 import com.rkbapps.tooai.db.entity.RecognizedText
 import com.rkbapps.tooai.ui.composabels.TopBar
-import com.rkbapps.tooai.utils.ProgressDialog
 import com.rkbapps.tooai.utils.copyText
-import com.rkbapps.tooai.ui.screens.text_recognitation.RecognizedTextViewModel
-import java.io.IOException
 
 @Composable
-fun TextReorganizationScreen(backStack: SnapshotStateList<Any>,viewModel: RecognizedTextViewModel= hiltViewModel()) {
+fun TextReorganizationScreen(
+    backStack: SnapshotStateList<Any>,
+    viewModel: RecognizedTextViewModel = hiltViewModel()
+) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
 
-    val recognizedTextList = viewModel.recognizedTextList.collectAsState()
+    val recognizedTextList by viewModel.recognizedTextList.collectAsStateWithLifecycle()
+    val recognitionState by viewModel.recognitionState.collectAsStateWithLifecycle()
+    val pendingImage by viewModel.pendingImage.collectAsStateWithLifecycle()
+    val selectedHistoryItem by viewModel.selectedHistoryItem.collectAsStateWithLifecycle()
 
-    val imageUri = remember {
-        mutableStateOf<Uri?>(null)
-    }
+    // A history row wins over a fresh scan — tapping history is always an explicit action.
+    val displayedText: RecognizedText? = selectedHistoryItem ?: recognitionState.data
+    val isFromHistory = selectedHistoryItem != null
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
         onResult = { uri ->
-            uri?.let {
-                imageUri.value = it
-            }
+            uri?.let { viewModel.onImagePicked(it) }
         }
     )
 
-    val currentRecognizedText = remember {
-        mutableStateOf<RecognizedText?>(null)
-    }
-
-    val isDialogVisible = remember {
-        mutableStateOf(false)
-    }
-
-    val isProcessing = remember {
-        mutableStateOf(false)
+    LaunchedEffect(recognitionState.error) {
+        recognitionState.error?.let { error ->
+            Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+        }
     }
 
     Scaffold(
@@ -116,14 +106,14 @@ fun TextReorganizationScreen(backStack: SnapshotStateList<Any>,viewModel: Recogn
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (imageUri.value == null) {
-                if (recognizedTextList.value.isEmpty()) {
+            if (pendingImage == null) {
+                if (recognizedTextList.isEmpty()) {
+                    LaunchedEffect(key1 = Unit) {
+                        galleryLauncher.launch("image/*")
+                    }
                     TextButton(onClick = {
                         galleryLauncher.launch("image/*")
                     }) {
-                        LaunchedEffect(key1 = Unit) {
-                            galleryLauncher.launch("image/*")
-                        }
                         Text(
                             text = "Select an image.",
                             style = MaterialTheme.typography.titleMedium
@@ -142,19 +132,17 @@ fun TextReorganizationScreen(backStack: SnapshotStateList<Any>,viewModel: Recogn
                             modifier = Modifier.weight(1f)
                         ) {
                             items(
-                                count = recognizedTextList.value.size,
+                                count = recognizedTextList.size,
                                 key = { key ->
-                                    recognizedTextList.value[key].id
+                                    recognizedTextList[key].id
                                 }
                             ) { position ->
                                 RecognizedTextItem(
-                                    item = recognizedTextList.value[position],
+                                    item = recognizedTextList[position],
                                     onIconClick = { text ->
                                         context.copyText(text)
                                     }) {
-                                    currentRecognizedText.value =
-                                        recognizedTextList.value[position]
-                                    isDialogVisible.value = true
+                                    viewModel.onHistoryItemSelected(recognizedTextList[position])
                                 }
                             }
                         }
@@ -172,7 +160,7 @@ fun TextReorganizationScreen(backStack: SnapshotStateList<Any>,viewModel: Recogn
                 }
             } else {
                 AsyncImage(
-                    model = imageUri.value,
+                    model = pendingImage,
                     contentDescription = "", modifier = Modifier
                         .weight(1f)
                         .padding(8.dp)
@@ -185,8 +173,9 @@ fun TextReorganizationScreen(backStack: SnapshotStateList<Any>,viewModel: Recogn
                         modifier = Modifier
                             .weight(1f)
                             .padding(vertical = 8.dp, horizontal = 16.dp),
+                        enabled = !recognitionState.isLoading,
                         onClick = {
-                            imageUri.value = null
+                            viewModel.clearPendingImage()
                         }) {
                         Text(text = "Cancel")
                     }
@@ -194,47 +183,19 @@ fun TextReorganizationScreen(backStack: SnapshotStateList<Any>,viewModel: Recogn
                         modifier = Modifier
                             .weight(1f)
                             .padding(vertical = 8.dp, horizontal = 16.dp),
+                        enabled = !recognitionState.isLoading,
                         onClick = {
-                            isProcessing.value = true
-                            try {
-                                val inputImage =
-                                    InputImage.fromFilePath(context, imageUri.value!!)
-                                val recognizer =
-                                    TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                                recognizer.process(inputImage)
-                                    .addOnSuccessListener { text ->
-//                                        resultText.value = text.text
-                                        val recognizedText = RecognizedText(0, text.text)
-                                        currentRecognizedText.value = recognizedText
-                                        isProcessing.value = false
-                                        isDialogVisible.value = true
-                                        viewModel.insert(recognizedText = recognizedText)
-                                    }.addOnFailureListener {
-                                        Toast.makeText(
-                                            context,
-                                            "Error: ${it.localizedMessage}",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                        isProcessing.value = false
-                                    }
-                            } catch (e: IOException) {
-                                e.printStackTrace()
-                                isProcessing.value = false
-                            }
+                            pendingImage?.let { viewModel.recognize(context, it) }
                         }) {
-                        Text(text = "Start")
+                        Text(text = if (recognitionState.isLoading) "Reading…" else "Start")
                     }
                 }
 
 
             }
 
-            if (isProcessing.value) {
-                ProgressDialog(isVisible = isProcessing)
-            }
-
-            if (isDialogVisible.value && currentRecognizedText.value != null) {
-                Dialog(onDismissRequest = { isDialogVisible.value = false }) {
+            if (displayedText != null) {
+                Dialog(onDismissRequest = { viewModel.dismissResult() }) {
                     Column(modifier = Modifier
                         .fillMaxWidth()
                         .fillMaxHeight(0.7f)
@@ -257,7 +218,7 @@ fun TextReorganizationScreen(backStack: SnapshotStateList<Any>,viewModel: Recogn
                                 .verticalScroll(rememberScrollState())
                         ) {
                             Text(
-                                text = currentRecognizedText.value!!.content,
+                                text = displayedText.content,
                                 textAlign = TextAlign.Justify, modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(8.dp)
@@ -271,21 +232,21 @@ fun TextReorganizationScreen(backStack: SnapshotStateList<Any>,viewModel: Recogn
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Button(
-                                modifier = Modifier.weight(1f), onClick = { isDialogVisible.value = false }) {
+                                modifier = Modifier.weight(1f), onClick = { viewModel.dismissResult() }) {
                                 Text(text = "Dismiss")
                             }
                             Spacer(modifier = Modifier.width(8.dp))
-                            if (currentRecognizedText.value!!.id == 0L) {
+                            if (!isFromHistory) {
                                 Button(modifier = Modifier.weight(1f), onClick = {
-                                    context.copyText(currentRecognizedText.value!!.content)
-                                    isDialogVisible.value = false
+                                    context.copyText(displayedText.content)
+                                    viewModel.dismissResult()
                                 }) {
                                     Text(text = "Copy")
                                 }
                             } else {
                                 OutlinedButton(modifier = Modifier.weight(1f), onClick = {
-                                    viewModel.delete(currentRecognizedText.value!!)
-                                    isDialogVisible.value = false
+                                    viewModel.delete(displayedText)
+                                    viewModel.dismissResult()
                                     Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT)
                                         .show()
                                 }) {

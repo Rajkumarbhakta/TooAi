@@ -3,6 +3,7 @@ package com.rkbapps.tooai.ui.screens.chat
 import android.util.Log
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
@@ -63,7 +64,7 @@ class ChatRepository @Inject constructor(
 
         val engineConfig = EngineConfig(
             modelPath = llmModel.path,
-            backend = Backend.CPU,
+            backend = Backend.CPU(),
             visionBackend = null,
             audioBackend = null,
             maxNumTokens = llmModel.maxTokens
@@ -79,7 +80,7 @@ class ChatRepository @Inject constructor(
                         topK = llmModel.topK,
                         topP = llmModel.topP
                     ),
-                    systemMessage = Message.of(getSystemPrompt())
+                    systemInstruction = Contents.of(getSystemPrompt())
                 )
             )
 
@@ -145,7 +146,7 @@ class ChatRepository @Inject constructor(
         // Initialize engine and conversation
         val engineConfig = EngineConfig(
             modelPath = llmModel.path,
-            backend = Backend.CPU,
+            backend = Backend.CPU(),
             visionBackend = null,
             audioBackend = null,
             maxNumTokens = llmModel.maxTokens
@@ -191,7 +192,7 @@ class ChatRepository @Inject constructor(
                         topK = llmModel.topK,
                         topP = llmModel.topP
                     ),
-                    systemMessage = Message.of(historyBuilder.toString())
+                    systemInstruction = Contents.of(historyBuilder.toString())
                 )
             )
 
@@ -424,7 +425,7 @@ class ChatRepository @Inject constructor(
                         topK = llmModel.topK,
                         topP = llmModel.topP
                     ),
-                    systemMessage = Message.of(historyBuilder.toString())
+                    systemInstruction = Contents.of(historyBuilder.toString())
                 )
             )
 

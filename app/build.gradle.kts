@@ -13,14 +13,14 @@ plugins {
 
 android {
     namespace = "com.rkbapps.tooai"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.rkbapps.tooai"
         minSdk = 26
-        targetSdk = 36
-        versionCode = 4
-        versionName = "2.0.1"
+        targetSdk = 37
+        versionCode = 5
+        versionName = "2.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

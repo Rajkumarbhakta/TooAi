@@ -1,3 +1,48 @@
 <resources>
     <string name="app_name">TooAi</string>
+
+    <!-- AI Writer -->
+    <string name="ai_writer">✨AI Writer</string>
+    <string name="ai_writer_no_model_title">No model imported</string>
+    <string name="ai_writer_no_model_message">Import a .task or .litertlm model in TooAi to use AI Writer.</string>
+    <string name="ai_writer_import_model">Import a model</string>
+    <string name="ai_writer_loading_model">Loading model…</string>
+    <string name="ai_writer_replace">Replace</string>
+    <string name="ai_writer_copy">Copy</string>
+    <string name="ai_writer_retry">Retry</string>
+    <string name="ai_writer_stop">Stop</string>
+    <string name="ai_writer_back">Back to actions</string>
+    <string name="ai_writer_selected_text">Selected text</string>
+    <string name="ai_writer_no_text">No text was selected.</string>
+    <string name="ai_writer_close">Close</string>
+    <string name="ai_writer_select_model">Select a model</string>
+
+    <!-- AI Writer pages -->
+    <string name="ai_writer_page_prompt">Write anything</string>
+    <string name="ai_writer_page_prompt_subtitle">Create content with a prompt</string>
+    <string name="ai_writer_page_polish">Polish</string>
+    <string name="ai_writer_page_summarize">Summarize</string>
+    <string name="ai_writer_page_proofread">Proofread</string>
+
+    <!-- AI Writer generation page -->
+    <string name="ai_writer_share">Share</string>
+    <string name="ai_writer_regenerate">Regenerate</string>
+    <string name="ai_writer_pick_style">Pick a style below to start.</string>
+
+    <!-- Write anything page -->
+    <string name="ai_writer_prompt_placeholder">Ask anything…</string>
+    <string name="ai_writer_generate">Generate</string>
+    <string name="ai_writer_use_selected_text">Use selected text</string>
+    <string name="ai_writer_starter_reply">Reply to this</string>
+    <string name="ai_writer_starter_email">Write an email</string>
+    <string name="ai_writer_starter_list">Make a list</string>
+    <string name="ai_writer_starter_explain">Explain this</string>
+    <string name="ai_writer_starter_reply_text">Write a short reply to this message</string>
+    <string name="ai_writer_starter_email_text">Write a professional email based on this</string>
+    <string name="ai_writer_starter_list_text">Turn this into a clear checklist</string>
+    <string name="ai_writer_starter_explain_text">Explain this in simple terms</string>
+    <string name="ai_writer_previous_variant">Previous result</string>
+    <string name="ai_writer_next_variant">Next result</string>
+    <string name="ai_writer_disclaimer">Generated on-device by %1$s. For reference only.</string>
+    <string name="ai_writer_disclaimer_generic">Generated on-device. For reference only.</string>
 </resources>
