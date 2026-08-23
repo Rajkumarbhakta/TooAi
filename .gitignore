@@ -20,3 +20,4 @@ local.properties
 gradle/gradle-daemon-jvm.properties
 *.keystore
 *.jks
+/playstore
