@@ -99,6 +99,7 @@ import kotlin.time.Duration.Companion.milliseconds
 @Composable
 fun ChatAndModelManagerScreen(
     backStack: SnapshotStateList<Any>,
+    initialPage: Int = 0,
     viewModel: ChatAndModelManagerViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -128,7 +129,7 @@ fun ChatAndModelManagerScreen(
     }
 
     val tabs = listOf("Chats (${chatSessions.size})", "Models (${llmModels.size})")
-    val pagerState = rememberPagerState(pageCount = { tabs.size })
+    val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { tabs.size })
     val scope = rememberCoroutineScope()
 
     var showConfigurationDialog by remember { mutableStateOf<Pair<LlmModel?, Uri?>>(null to null) }

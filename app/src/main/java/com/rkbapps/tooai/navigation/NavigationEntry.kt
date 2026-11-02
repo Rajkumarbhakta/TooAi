@@ -31,7 +31,9 @@ sealed class NavigationEntry: NavKey, Parcelable {
 
     @Parcelize
     @Serializable
-    data object ChatAndModelManagement: NavigationEntry()
+    data class ChatAndModelManagement(
+        val initialPage: Int = 0
+    ): NavigationEntry()
 
     @Parcelize
     @Serializable

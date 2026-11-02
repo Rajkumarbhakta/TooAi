@@ -63,8 +63,8 @@ fun NavManager(
                 TextReorganizationScreen(backStack)
             }
 
-            entry<NavigationEntry.ChatAndModelManagement> {
-                ChatAndModelManagerScreen(backStack)
+            entry<NavigationEntry.ChatAndModelManagement> { key ->
+                ChatAndModelManagerScreen(backStack, key.initialPage)
             }
 
             entry<NavigationEntry.AiChat>{

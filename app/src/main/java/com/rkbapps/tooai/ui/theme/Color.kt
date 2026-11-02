@@ -3,7 +3,6 @@ package com.rkbapps.tooai.ui.theme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 // Seed palette, used when dynamic color is unavailable.
@@ -190,5 +189,3 @@ val DarkToolPalette = ToolPalette(
         onAction = Color(0xFF003258),
     ),
 )
-
-val LocalToolPalette = staticCompositionLocalOf { LightToolPalette }
