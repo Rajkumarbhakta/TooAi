@@ -82,6 +82,8 @@ fun LargeCollapsingTopBar(
     scrollBehavior: TopAppBarScrollBehavior,
     onNavigationIconClick: () -> Unit,
     containerColor: Color = pageContainerColor(),
+    navigationIcon: Int = R.drawable.arrow_back,
+    navigationContentDescription: String = "navigation up",
     actions: @Composable (RowScope.() -> Unit) = {},
 ) {
     LargeFlexibleTopAppBar(
@@ -89,8 +91,8 @@ fun LargeCollapsingTopBar(
         navigationIcon = {
             IconButton(onClick = onNavigationIconClick) {
                 Icon(
-                    painter = painterResource(R.drawable.arrow_back),
-                    contentDescription = "navigation up"
+                    painter = painterResource(navigationIcon),
+                    contentDescription = navigationContentDescription
                 )
             }
         },

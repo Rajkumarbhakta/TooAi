@@ -8,9 +8,12 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -82,6 +85,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -206,353 +210,320 @@ fun ChatAndModelManagerScreen(
         }
     }
 
-    Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            LargeCollapsingTopBar(
-                title = "Library",
-                scrollBehavior = scrollBehavior,
-                onNavigationIconClick = { backStack.removeLastOrNull() }
-            )
-        },
-        containerColor = pageContainerColor(),
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                modifier = Modifier.height(64.dp),
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                onClick = {
-                    if (pagerState.currentPage == 0) {
-                        if (llmModels.isNotEmpty()) {
-                            scope.launch {
-                                pagerState.animateScrollToPage(1)
-                            }
-                        } else {
-                            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                                addCategory(Intent.CATEGORY_OPENABLE)
-                                type = "*/*"
-                                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
-                            }
-                            modelPickerLauncher.launch(intent)
-                        }
-                    } else {
-                        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                            addCategory(Intent.CATEGORY_OPENABLE)
-                            type = "*/*"
-                            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
-                        }
-                        modelPickerLauncher.launch(intent)
-                    }
-                },
-                icon = {
-                    AnimatedContent(
-                        targetState = pagerState.currentPage,
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        label = "fab_icon"
-                    ) { page ->
-                        if (page == 0) {
-                            Icon(
-                                painter = painterResource(R.drawable.chatbot),
-                                contentDescription = "New Chat"
-                            )
-                        } else {
-                            Icon(
-                                painter = painterResource(R.drawable.add),
-                                contentDescription = "Import Model"
-                            )
-                        }
-                    }
-                },
-                text = {
-                    AnimatedContent(
-                        targetState = pagerState.currentPage,
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        label = "fab_text"
-                    ) { page ->
-                        Text(
-                            text = if (page == 0) "New chat" else "Import model",
-                            style = MaterialTheme.typography.titleMediumEmphasized
-                        )
-                    }
-                }
-            )
+    val launchModelPicker = {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
         }
-    ) { innerPadding ->
+        modelPickerLauncher.launch(intent)
+    }
 
-        if (modelImportProgress > 0f) {
-            Dialog(onDismissRequest = { modelImportProgress = 0f }) {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    tonalElevation = 6.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.download),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = "Importing Model...",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        LinearWavyProgressIndicator(
-                            progress = { modelImportProgress },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Text(
-                            text = "${(modelImportProgress * 100).toInt()}% completed",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
+    val isConfiguringModel = showConfigurationDialog.first != null
 
-        // Delete Model Dialog
-        deletableModel?.let { model ->
-            AlertDialog(
-                onDismissRequest = { deletableModel = null },
-                icon = {
-                    Icon(
-                        painter = painterResource(R.drawable.delete),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                },
-                title = { Text("Delete ${model.displayName}?") },
-                text = { Text("Are you sure you want to delete ${model.displayName}? This model file will be permanently removed.") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            viewModel.deleteModel(model)
-                            deletableModel = null
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError
-                        )
-                    ) {
-                        Text("Delete")
-                    }
-                },
-                dismissButton = {
-                    OutlinedButton(onClick = { deletableModel = null }) {
-                        Text("Cancel")
-                    }
-                }
-            )
-        }
-
-        // Model Configuration Dialog
-        showConfigurationDialog.first?.let { model ->
-            LlmModelConfigurationDialog(
-                model = model,
-                confirmButtonText = if (showConfigurationDialog.second == null) "Update" else "Import",
-                onDismiss = { showConfigurationDialog = null to null }
-            ) { updatedModel ->
-                if (showConfigurationDialog.second != null) {
-                    viewModel.importModel(
-                        context = context,
-                        fileSize = updatedModel.sizeInBytes,
-                        fileName = updatedModel.displayName,
-                        uri = showConfigurationDialog.second!!,
-                        onDone = { path ->
-                            val update = model.copy(
-                                path = path,
-                                fileLocation = "${ModelConfigs.IMPORT_DIR}/${model.displayName}"
-                            )
-                            viewModel.addModel(update)
-                            showConfigurationDialog = null to null
-                        },
-                        onProgress = { value -> modelImportProgress = value },
-                        onError = { err ->
-                            modelImportProgress = 0f
-                            showConfigurationDialog = null to null
-                            error = "Error Configuration" to err
-                        }
-                    )
-                } else {
-                    viewModel.updateModel(model = updatedModel)
-                    showConfigurationDialog = null to null
-                }
-            }
-        }
-
-        // Delete Chat Dialog
-        deletableChat?.let { chat ->
-            AlertDialog(
-                onDismissRequest = { deletableChat = null },
-                icon = {
-                    Icon(
-                        painter = painterResource(R.drawable.delete),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                },
-                title = { Text("Delete Chat?") },
-                text = { Text("Are you sure you want to delete \"${chat.title}\"?") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            viewModel.deleteChat(chat)
-                            deletableChat = null
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError
-                        )
-                    ) {
-                        Text("Delete")
-                    }
-                },
-                dismissButton = {
-                    OutlinedButton(onClick = { deletableChat = null }) {
-                        Text("Cancel")
-                    }
-                }
-            )
-        }
-
-        // Update Chat Name Dialog
-        updatableChat?.let { chat ->
-            var name by remember { mutableStateOf(chat.title) }
-            AlertDialog(
-                onDismissRequest = { updatableChat = null },
-                title = { Text("Rename Chat") },
-                text = {
-                    OutlinedTextField(
-                        modifier = Modifier.fillMaxWidth(),
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text("Chat Title") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            if (name.isNotBlank()) {
-                                viewModel.updateChat(chat.copy(title = name))
-                            }
-                            updatableChat = null
-                        },
-                        enabled = name.isNotBlank()
-                    ) {
-                        Text("Save")
-                    }
-                },
-                dismissButton = {
-                    OutlinedButton(onClick = { updatableChat = null }) {
-                        Text("Cancel")
-                    }
-                }
-            )
-        }
-
-        // Error Dialog
-        if (error.second.isNotBlank()) {
-            AlertDialog(
-                onDismissRequest = { error = null to "" },
-                title = { Text(error.first ?: "Error") },
-                text = { Text(error.second) },
-                confirmButton = {
-                    Button(onClick = { error = null to "" }) {
-                        Text("OK")
-                    }
-                }
-            )
-        }
-
-        Column(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            LibraryTabs(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                selectedPage = pagerState.currentPage,
-                chatCount = chatSessions.size,
-                modelCount = llmModels.size
-            ) { selectedTab ->
-                scope.launch {
-                    if (pagerState.currentPage != selectedTab)
-                        pagerState.animateScrollToPage(page = selectedTab)
-                }
+                .nestedScroll(scrollBehavior.nestedScrollConnection)
+                .then(if (isConfiguringModel) Modifier.clearAndSetSemantics {} else Modifier),
+            topBar = {
+                LargeCollapsingTopBar(
+                    title = "Library",
+                    scrollBehavior = scrollBehavior,
+                    onNavigationIconClick = { backStack.removeLastOrNull() }
+                )
+            },
+            containerColor = pageContainerColor(),
+            floatingActionButton = {
+                ExtendedFloatingActionButton(
+                    modifier = Modifier.height(64.dp),
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    onClick = {
+                        if (pagerState.currentPage == 0) {
+                            if (llmModels.isNotEmpty()) {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(1)
+                                }
+                            } else {
+                                launchModelPicker()
+                            }
+                        } else {
+                            launchModelPicker()
+                        }
+                    },
+                    icon = {
+                        AnimatedContent(
+                            targetState = pagerState.currentPage,
+                            transitionSpec = { fadeIn() togetherWith fadeOut() },
+                            label = "fab_icon"
+                        ) { page ->
+                            if (page == 0) {
+                                Icon(
+                                    painter = painterResource(R.drawable.chatbot),
+                                    contentDescription = "New Chat"
+                                )
+                            } else {
+                                Icon(
+                                    painter = painterResource(R.drawable.add),
+                                    contentDescription = "Import Model"
+                                )
+                            }
+                        }
+                    },
+                    text = {
+                        AnimatedContent(
+                            targetState = pagerState.currentPage,
+                            transitionSpec = { fadeIn() togetherWith fadeOut() },
+                            label = "fab_text"
+                        ) { page ->
+                            Text(
+                                text = if (page == 0) "New chat" else "Import model",
+                                style = MaterialTheme.typography.titleMediumEmphasized
+                            )
+                        }
+                    }
+                )
+            }
+        ) { innerPadding ->
+
+            // Delete Model Dialog
+            deletableModel?.let { model ->
+                AlertDialog(
+                    onDismissRequest = { deletableModel = null },
+                    icon = {
+                        Icon(
+                            painter = painterResource(R.drawable.delete),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    title = { Text("Delete ${model.displayName}?") },
+                    text = { Text("Are you sure you want to delete ${model.displayName}? This model file will be permanently removed.") },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                viewModel.deleteModel(model)
+                                deletableModel = null
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            )
+                        ) {
+                            Text("Delete")
+                        }
+                    },
+                    dismissButton = {
+                        OutlinedButton(onClick = { deletableModel = null }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
             }
 
-            LibrarySearchField(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                query = searchQuery,
-                placeholder = if (pagerState.currentPage == 0) "Search chats" else "Search models",
-                onQueryChange = { searchQuery = it }
-            )
+            // Delete Chat Dialog
+            deletableChat?.let { chat ->
+                AlertDialog(
+                    onDismissRequest = { deletableChat = null },
+                    icon = {
+                        Icon(
+                            painter = painterResource(R.drawable.delete),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    title = { Text("Delete Chat?") },
+                    text = { Text("Are you sure you want to delete \"${chat.title}\"?") },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                viewModel.deleteChat(chat)
+                                deletableChat = null
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            )
+                        ) {
+                            Text("Delete")
+                        }
+                    },
+                    dismissButton = {
+                        OutlinedButton(onClick = { deletableChat = null }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
 
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize()
-            ) { page ->
-                when (page) {
-                    0 -> ChatList(
-                        chats = filteredChats,
-                        isSearching = searchQuery.isNotBlank(),
-                        modelMap = modelMap,
-                        previews = chatPreviews,
-                        onDelete = { chat -> deletableChat = chat },
-                        onRename = { chat -> updatableChat = chat },
-                        onExport = { chat ->
-                            viewModel.exportChat(chat) { transcript ->
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_SUBJECT, chat.title)
-                                    putExtra(Intent.EXTRA_TEXT, transcript)
+            // Update Chat Name Dialog
+            updatableChat?.let { chat ->
+                var name by remember { mutableStateOf(chat.title) }
+                AlertDialog(
+                    onDismissRequest = { updatableChat = null },
+                    title = { Text("Rename Chat") },
+                    text = {
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            value = name,
+                            onValueChange = { name = it },
+                            label = { Text("Chat Title") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (name.isNotBlank()) {
+                                    viewModel.updateChat(chat.copy(title = name))
                                 }
-                                context.startActivity(Intent.createChooser(intent, "Export chat"))
+                                updatableChat = null
+                            },
+                            enabled = name.isNotBlank()
+                        ) {
+                            Text("Save")
+                        }
+                    },
+                    dismissButton = {
+                        OutlinedButton(onClick = { updatableChat = null }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            // Error Dialog
+            if (error.second.isNotBlank()) {
+                AlertDialog(
+                    onDismissRequest = { error = null to "" },
+                    title = { Text(error.first ?: "Error") },
+                    text = { Text(error.second) },
+                    confirmButton = {
+                        Button(onClick = { error = null to "" }) {
+                            Text("OK")
+                        }
+                    }
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                LibraryTabs(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    selectedPage = pagerState.currentPage,
+                    chatCount = chatSessions.size,
+                    modelCount = llmModels.size
+                ) { selectedTab ->
+                    scope.launch {
+                        if (pagerState.currentPage != selectedTab)
+                            pagerState.animateScrollToPage(page = selectedTab)
+                    }
+                }
+
+                LibrarySearchField(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    query = searchQuery,
+                    placeholder = if (pagerState.currentPage == 0) "Search chats" else "Search models",
+                    onQueryChange = { searchQuery = it }
+                )
+
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    when (page) {
+                        0 -> ChatList(
+                            chats = filteredChats,
+                            isSearching = searchQuery.isNotBlank(),
+                            modelMap = modelMap,
+                            previews = chatPreviews,
+                            onDelete = { chat -> deletableChat = chat },
+                            onRename = { chat -> updatableChat = chat },
+                            onExport = { chat ->
+                                viewModel.exportChat(chat) { transcript ->
+                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_SUBJECT, chat.title)
+                                        putExtra(Intent.EXTRA_TEXT, transcript)
+                                    }
+                                    context.startActivity(Intent.createChooser(intent, "Export chat"))
+                                }
+                            },
+                            onChatItemClick = { chat ->
+                                backStack.add(NavigationEntry.AiChat(id = chat.id, type = IdType.CHAT))
+                            },
+                            onBrowseModels = {
+                                scope.launch { pagerState.animateScrollToPage(1) }
+                            },
+                            onClearSearch = { searchQuery = "" }
+                        )
+                        1 -> ModelList(
+                            models = filteredModels,
+                            usedStorageBytes = llmModels.sumOf { it.sizeInBytes },
+                            freeStorageBytes = freeStorageBytes,
+                            modelCount = llmModels.size,
+                            isSearching = searchQuery.isNotBlank(),
+                            onDelete = { model -> deletableModel = model },
+                            onConfigClick = { model -> showConfigurationDialog = model to null },
+                            onModelItemClick = { model ->
+                                backStack.add(NavigationEntry.AiChat(id = model.id.toString(), type = IdType.MODEL))
+                            },
+                            onImportModel = launchModelPicker,
+                            onClearSearch = { searchQuery = "" }
+                        )
+                    }
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = isConfiguringModel,
+            enter = slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it },
+            exit = ExitTransition.None
+        ) {
+            showConfigurationDialog.first?.let { model ->
+                val importUri = showConfigurationDialog.second
+                LlmModelConfigurationScreen(
+                    title = if (importUri == null) "Configure model" else "Import model",
+                    confirmButtonText = if (importUri == null) "Update" else "Import model",
+                    model = model,
+                    importProgress = modelImportProgress,
+                    fileSizeText = formatFileSize(model.sizeInBytes),
+                    onChangeFile = if (importUri == null) null else launchModelPicker,
+                    onDismiss = { showConfigurationDialog = null to null }
+                ) { updatedModel ->
+                    if (importUri != null) {
+                        viewModel.importModel(
+                            context = context,
+                            fileSize = updatedModel.sizeInBytes,
+                            // The display name can be edited freely, the file keeps its extension.
+                            fileName = updatedModel.name,
+                            uri = importUri,
+                            onDone = { path ->
+                                viewModel.addModel(
+                                    updatedModel.copy(
+                                        path = path,
+                                        fileLocation = "${ModelConfigs.IMPORT_DIR}/${updatedModel.name}"
+                                    )
+                                )
+                                showConfigurationDialog = null to null
+                            },
+                            onProgress = { value -> modelImportProgress = value },
+                            onError = { err ->
+                                modelImportProgress = 0f
+                                showConfigurationDialog = null to null
+                                error = "Error Configuration" to err
                             }
-                        },
-                        onChatItemClick = { chat ->
-                            backStack.add(NavigationEntry.AiChat(id = chat.id, type = IdType.CHAT))
-                        },
-                        onBrowseModels = {
-                            scope.launch { pagerState.animateScrollToPage(1) }
-                        },
-                        onClearSearch = { searchQuery = "" }
-                    )
-                    1 -> ModelList(
-                        models = filteredModels,
-                        usedStorageBytes = llmModels.sumOf { it.sizeInBytes },
-                        freeStorageBytes = freeStorageBytes,
-                        modelCount = llmModels.size,
-                        isSearching = searchQuery.isNotBlank(),
-                        onDelete = { model -> deletableModel = model },
-                        onConfigClick = { model -> showConfigurationDialog = model to null },
-                        onModelItemClick = { model ->
-                            backStack.add(NavigationEntry.AiChat(id = model.id.toString(), type = IdType.MODEL))
-                        },
-                        onImportModel = {
-                            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                                addCategory(Intent.CATEGORY_OPENABLE)
-                                type = "*/*"
-                                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
-                            }
-                            modelPickerLauncher.launch(intent)
-                        },
-                        onClearSearch = { searchQuery = "" }
-                    )
+                        )
+                    } else {
+                        viewModel.updateModel(model = updatedModel)
+                        showConfigurationDialog = null to null
+                    }
                 }
             }
         }
