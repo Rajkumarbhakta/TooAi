@@ -3,58 +3,64 @@ package com.rkbapps.tooai.ui.screens.model_and_chat_manager
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.os.StatFs
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.ToggleButtonShapes
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -67,11 +73,17 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -84,16 +96,24 @@ import com.rkbapps.tooai.db.entity.ChatSession
 import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.navigation.IdType
 import com.rkbapps.tooai.navigation.NavigationEntry
-import com.rkbapps.tooai.ui.composabels.TopBar
+import com.rkbapps.tooai.ui.composabels.LargeCollapsingTopBar
+import com.rkbapps.tooai.ui.screens.chat.removePromptIfApplied
+import com.rkbapps.tooai.ui.theme.GroupedListDefaults
+import com.rkbapps.tooai.ui.theme.SurfaceStatusBar
 import com.rkbapps.tooai.ui.theme.TooAiTheme
+import com.rkbapps.tooai.ui.theme.pageContainerColor
+import com.rkbapps.tooai.ui.theme.rowContainerColor
 import com.rkbapps.tooai.utils.ModelConfigs
 import com.rkbapps.tooai.utils.getFileName
 import com.rkbapps.tooai.utils.getFileNameAndSize
 import com.rkbapps.tooai.utils.toDateTimeString
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,10 +122,13 @@ fun ChatAndModelManagerScreen(
     initialPage: Int = 0,
     viewModel: ChatAndModelManagerViewModel = hiltViewModel()
 ) {
+    SurfaceStatusBar()
+
     val context = LocalContext.current
 
     val llmModels by viewModel.llmModels.collectAsStateWithLifecycle()
     val chatSessions by viewModel.chatSessions.collectAsStateWithLifecycle()
+    val chatPreviews by viewModel.chatPreviews.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
 
@@ -128,8 +151,12 @@ fun ChatAndModelManagerScreen(
         llmModels.associateBy { it.id }
     }
 
-    val tabs = listOf("Chats (${chatSessions.size})", "Models (${llmModels.size})")
-    val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { tabs.size })
+    val freeStorageBytes = remember(llmModels) {
+        StatFs((context.getExternalFilesDir(null) ?: context.filesDir).path).availableBytes
+    }
+
+    val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { 2 })
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scope = rememberCoroutineScope()
 
     var showConfigurationDialog by remember { mutableStateOf<Pair<LlmModel?, Uri?>>(null to null) }
@@ -180,13 +207,20 @@ fun ChatAndModelManagerScreen(
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopBar(title = "Models & Chats") {
-                backStack.removeLastOrNull()
-            }
+            LargeCollapsingTopBar(
+                title = "Library",
+                scrollBehavior = scrollBehavior,
+                onNavigationIconClick = { backStack.removeLastOrNull() }
+            )
         },
+        containerColor = pageContainerColor(),
         floatingActionButton = {
             ExtendedFloatingActionButton(
+                modifier = Modifier.height(64.dp),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 onClick = {
                     if (pagerState.currentPage == 0) {
                         if (llmModels.isNotEmpty()) {
@@ -235,7 +269,10 @@ fun ChatAndModelManagerScreen(
                         transitionSpec = { fadeIn() togetherWith fadeOut() },
                         label = "fab_text"
                     ) { page ->
-                        Text(if (page == 0) "New Chat" else "Import Model")
+                        Text(
+                            text = if (page == 0) "New chat" else "Import model",
+                            style = MaterialTheme.typography.titleMediumEmphasized
+                        )
                     }
                 }
             )
@@ -271,12 +308,9 @@ fun ChatAndModelManagerScreen(
                                 fontWeight = FontWeight.Bold
                             )
                         }
-                        LinearProgressIndicator(
+                        LinearWavyProgressIndicator(
                             progress = { modelImportProgress },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .clip(CircleShape)
+                            modifier = Modifier.fillMaxWidth()
                         )
                         Text(
                             text = "${(modelImportProgress * 100).toInt()}% completed",
@@ -449,11 +483,11 @@ fun ChatAndModelManagerScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Tab Row
-            SegmentedTabRow(
+            LibraryTabs(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                tabItems = tabs,
-                selectedTabIndex = pagerState.currentPage
+                selectedPage = pagerState.currentPage,
+                chatCount = chatSessions.size,
+                modelCount = llmModels.size
             ) { selectedTab ->
                 scope.launch {
                     if (pagerState.currentPage != selectedTab)
@@ -461,39 +495,11 @@ fun ChatAndModelManagerScreen(
                 }
             }
 
-            // Search Bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                placeholder = {
-                    Text(
-                        text = if (pagerState.currentPage == 0) "Search chats..." else "Search models...",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = ImageVector.vectorResource(R.drawable.search),
-                        contentDescription = "Search",
-                        modifier = Modifier.size(20.dp)
-                    )
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(
-                                painter = painterResource(R.drawable.close),
-                                contentDescription = "Clear search",
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp)
+            LibrarySearchField(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                query = searchQuery,
+                placeholder = if (pagerState.currentPage == 0) "Search chats" else "Search models",
+                onQueryChange = { searchQuery = it }
             )
 
             HorizontalPager(
@@ -505,8 +511,19 @@ fun ChatAndModelManagerScreen(
                         chats = filteredChats,
                         isSearching = searchQuery.isNotBlank(),
                         modelMap = modelMap,
+                        previews = chatPreviews,
                         onDelete = { chat -> deletableChat = chat },
-                        onConfigClick = { chat -> updatableChat = chat },
+                        onRename = { chat -> updatableChat = chat },
+                        onExport = { chat ->
+                            viewModel.exportChat(chat) { transcript ->
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, chat.title)
+                                    putExtra(Intent.EXTRA_TEXT, transcript)
+                                }
+                                context.startActivity(Intent.createChooser(intent, "Export chat"))
+                            }
+                        },
                         onChatItemClick = { chat ->
                             backStack.add(NavigationEntry.AiChat(id = chat.id, type = IdType.CHAT))
                         },
@@ -517,6 +534,9 @@ fun ChatAndModelManagerScreen(
                     )
                     1 -> ModelList(
                         models = filteredModels,
+                        usedStorageBytes = llmModels.sumOf { it.sizeInBytes },
+                        freeStorageBytes = freeStorageBytes,
+                        modelCount = llmModels.size,
                         isSearching = searchQuery.isNotBlank(),
                         onDelete = { model -> deletableModel = model },
                         onConfigClick = { model -> showConfigurationDialog = model to null },
@@ -543,6 +563,9 @@ fun ChatAndModelManagerScreen(
 fun ModelList(
     modifier: Modifier = Modifier,
     models: List<LlmModel>,
+    usedStorageBytes: Long,
+    freeStorageBytes: Long,
+    modelCount: Int,
     isSearching: Boolean,
     onDelete: (LlmModel) -> Unit,
     onConfigClick: (LlmModel) -> Unit,
@@ -624,9 +647,16 @@ fun ModelList(
             modifier = modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(6.dp)) }
+            item(key = "storage") {
+                ModelStorageCard(
+                    modifier = Modifier.padding(top = 8.dp),
+                    usedBytes = usedStorageBytes,
+                    freeBytes = freeStorageBytes,
+                    modelCount = modelCount
+                )
+            }
             items(models, key = { it.id }) { llmModel ->
                 LlmModelItemUi(
                     model = llmModel,
@@ -646,8 +676,10 @@ fun ChatList(
     chats: List<ChatSession>,
     isSearching: Boolean,
     modelMap: Map<Long, LlmModel>,
+    previews: Map<String, String>,
     onDelete: (ChatSession) -> Unit,
-    onConfigClick: (ChatSession) -> Unit,
+    onRename: (ChatSession) -> Unit,
+    onExport: (ChatSession) -> Unit,
     onChatItemClick: (ChatSession) -> Unit,
     onBrowseModels: () -> Unit,
     onClearSearch: () -> Unit
@@ -707,176 +739,235 @@ fun ChatList(
             }
         }
     } else {
+        val groups = remember(chats) { chats.groupBy { chatDateGroup(it.updatedAt) } }
         LazyColumn(
             modifier = modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(GroupedListDefaults.Gap)
         ) {
-            item { Spacer(modifier = Modifier.height(6.dp)) }
-            items(chats, key = { it.id }) { chat ->
-                ChatItem(
-                    chat = chat,
-                    associatedModel = modelMap[chat.modelId],
-                    onDelete = onDelete,
-                    onConfigClick = onConfigClick,
-                    onChatItemClick = onChatItemClick
-                )
+            groups.forEach { (group, groupChats) ->
+                item(key = group) {
+                    Text(
+                        text = group,
+                        modifier = Modifier.padding(start = 12.dp, top = 16.dp, bottom = 8.dp),
+                        style = MaterialTheme.typography.titleSmallEmphasized,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                itemsIndexed(groupChats, key = { _, chat -> chat.id }) { index, chat ->
+                    ChatItem(
+                        shape = GroupedListDefaults.shape(index, groupChats.size),
+                        chat = chat,
+                        associatedModel = modelMap[chat.modelId],
+                        preview = previews[chat.id],
+                        onDelete = onDelete,
+                        onRename = onRename,
+                        onExport = onExport,
+                        onChatItemClick = onChatItemClick
+                    )
+                }
             }
-            item { Spacer(modifier = Modifier.height(80.dp)) }
+            item { Spacer(modifier = Modifier.height(96.dp)) }
         }
     }
 }
 
+private fun plainPreview(reply: String) =
+    removePromptIfApplied(reply).replace(Regex("[*#`]"), "").replace(Regex("\\s+"), " ").trim()
+
+private fun chatDateGroup(timestamp: Long): String {
+    val today = LocalDate.now()
+    val date = Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).toLocalDate()
+    return when (date) {
+        today -> "Today"
+        today.minusDays(1) -> "Yesterday"
+        else -> "Earlier"
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChatItem(
     modifier: Modifier = Modifier,
+    shape: Shape,
     chat: ChatSession,
     associatedModel: LlmModel? = null,
+    preview: String? = null,
     onDelete: (ChatSession) -> Unit,
-    onConfigClick: (ChatSession) -> Unit,
+    onRename: (ChatSession) -> Unit,
+    onExport: (ChatSession) -> Unit,
     onChatItemClick: (ChatSession) -> Unit
 ) {
-    OutlinedCard(
-        modifier = modifier.fillMaxWidth(),
+    var isMenuOpen by remember { mutableStateOf(false) }
+    val containerColor by animateColorAsState(
+        targetValue = if (isMenuOpen) MaterialTheme.colorScheme.primaryContainer else rowContainerColor(),
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+        label = "chat_row_bg"
+    )
+    val secondaryColor = if (isMenuOpen) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val time = chat.updatedAt.toDateTimeString(pattern = "dd MMM yyyy, hh:mm a")
+
+    Surface(
         onClick = { onChatItemClick(chat) },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.outlinedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
+        modifier = modifier.fillMaxWidth(),
+        shape = shape,
+        color = containerColor
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+        Row(
+            modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.chatbot),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = chat.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.access_time),
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = chat.createdAt.toDateTimeString(pattern = "dd MMM yyyy, hh:mm a"),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            if (associatedModel != null) {
-                AssistChip(
-                    onClick = { onChatItemClick(chat) },
-                    label = {
-                        Text(
-                            text = "Model: ${associatedModel.displayName}",
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.MiddleEllipsis
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            painter = painterResource(R.drawable.sparkles),
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    },
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                    ),
-                    border = null,
-                    modifier = Modifier.height(28.dp)
+                Text(
+                    text = chat.title,
+                    style = MaterialTheme.typography.titleMediumEmphasized,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
+                preview?.takeIf { it.isNotBlank() }?.let {
+                    Text(
+                        text = plainPreview(it),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = secondaryColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Row {
+                    associatedModel?.let {
+                        Text(
+                            text = it.displayName,
+                            modifier = Modifier.weight(1f, fill = false),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = secondaryColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = " · ",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = secondaryColor
+                        )
+                    }
+                    Text(
+                        text = time,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = secondaryColor,
+                        maxLines = 1
+                    )
+                }
             }
 
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    IconButton(
-                        onClick = { onConfigClick(chat) },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.tune),
-                            contentDescription = "Rename Chat",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { onDelete(chat) },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.delete),
-                            contentDescription = "Delete Chat",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+            Box {
+                IconButton(onClick = { isMenuOpen = true }) {
+                    Icon(
+                        painter = painterResource(R.drawable.more_vert),
+                        contentDescription = "More options",
+                        tint = secondaryColor
+                    )
                 }
-
-                FilledTonalButton(
-                    onClick = { onChatItemClick(chat) },
-                    shape = RoundedCornerShape(10.dp)
+                DropdownMenu(
+                    expanded = isMenuOpen,
+                    onDismissRequest = { isMenuOpen = false },
+                    shape = RoundedCornerShape(20.dp),
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Open Chat")
-                        Icon(
-                            painter = painterResource(R.drawable.arrow_forward),
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
+                    DropdownMenuItem(
+                        text = { Text("Rename") },
+                        leadingIcon = {
+                            Icon(painter = painterResource(R.drawable.edit), contentDescription = null)
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            onRename(chat)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Export as text") },
+                        leadingIcon = {
+                            Icon(painter = painterResource(R.drawable.share), contentDescription = null)
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            onExport(chat)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(R.drawable.delete),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            onDelete(chat)
+                        }
+                    )
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ModelStorageCard(
+    modifier: Modifier = Modifier,
+    usedBytes: Long,
+    freeBytes: Long,
+    modelCount: Int
+) {
+    val total = (usedBytes + freeBytes).coerceAtLeast(1L)
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = rowContainerColor()
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Model storage",
+                    style = MaterialTheme.typography.titleSmallEmphasized
+                )
+                Text(
+                    text = "${formatFileSize(usedBytes)} used · ${formatFileSize(freeBytes)} free",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            LinearWavyProgressIndicator(
+                progress = { usedBytes.toFloat() / total },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                text = if (modelCount == 1) "1 model on this device" else "$modelCount models on this device",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun LlmModelItemUi(
     modifier: Modifier = Modifier,
@@ -885,68 +976,58 @@ fun LlmModelItemUi(
     onConfigClick: (LlmModel) -> Unit,
     onClick: (LlmModel) -> Unit
 ) {
-    ElevatedCard(
-        modifier = modifier.fillMaxWidth(),
+    val title = model.displayName.ifBlank { model.name }
+    val fileDetails = listOfNotNull(
+        model.name.takeIf { it != title },
+        formatFileSize(model.sizeInBytes)
+    ).joinToString(" · ")
+
+    Surface(
         onClick = { onClick(model) },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        )
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = rowContainerColor()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondaryContainer),
+                        .size(44.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(14.dp)
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.sparkles),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(22.dp)
                     )
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = model.displayName.ifBlank { model.name },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        text = title,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurface
+                        overflow = TextOverflow.MiddleEllipsis
                     )
                     Text(
-                        text = model.name,
+                        text = fileDetails,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Text(
-                        text = formatFileSize(model.sizeInBytes),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        overflow = TextOverflow.MiddleEllipsis
                     )
                 }
             }
@@ -955,57 +1036,52 @@ fun LlmModelItemUi(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                ParamBadge(label = "Tokens: ${model.maxTokens}")
-                ParamBadge(label = "Temp: ${model.temperature}")
-                ParamBadge(label = "Top K: ${model.topK}")
-                ParamBadge(label = "Top P: ${model.topP}")
+                ParamBadge(label = "CPU")
+                ParamBadge(label = "Temp ${model.temperature}")
+                ParamBadge(label = "Top-k ${model.topK}")
+                ParamBadge(label = "Top-p ${model.topP}")
+                ParamBadge(label = "${model.maxTokens} tokens")
             }
 
             Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    IconButton(
-                        onClick = { onConfigClick(model) },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.tune),
-                            contentDescription = "Configure Model",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { onDelete(model) },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.delete),
-                            contentDescription = "Delete Model",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
                 Button(
                     onClick = { onClick(model) },
-                    shape = RoundedCornerShape(10.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 44.dp),
+                    shapes = ButtonDefaults.shapes()
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.chatbot),
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text("Start Chat")
-                    }
+                    Text(
+                        text = "Start chat",
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        maxLines = 1
+                    )
+                }
+                FilledTonalButton(
+                    onClick = { onConfigClick(model) },
+                    modifier = Modifier.heightIn(min = 44.dp),
+                    shapes = ButtonDefaults.shapes()
+                ) {
+                    Text(
+                        text = "Configure",
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                        maxLines = 1
+                    )
+                }
+                OutlinedIconButton(
+                    onClick = { onDelete(model) },
+                    modifier = Modifier.size(44.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.delete),
+                        contentDescription = "Delete Model",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
@@ -1015,87 +1091,146 @@ fun LlmModelItemUi(
 @Composable
 private fun ParamBadge(label: String) {
     Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceContainer
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelMediumEmphasized,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
         )
     }
 }
 
 @Composable
-fun SegmentedTabRow(
+private fun LibrarySearchField(
     modifier: Modifier = Modifier,
-    tabItems: List<String>,
-    selectedTabIndex: Int,
+    query: String,
+    placeholder: String,
+    onQueryChange: (String) -> Unit
+) {
+    val containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    TextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = modifier.fillMaxWidth(),
+        placeholder = { Text(placeholder) },
+        leadingIcon = {
+            Icon(
+                imageVector = ImageVector.vectorResource(R.drawable.search),
+                contentDescription = null
+            )
+        },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        painter = painterResource(R.drawable.close),
+                        contentDescription = "Clear search"
+                    )
+                }
+            }
+        },
+        singleLine = true,
+        shape = CircleShape,
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = containerColor,
+            unfocusedContainerColor = containerColor,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent
+        )
+    )
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun LibraryTabs(
+    modifier: Modifier = Modifier,
+    selectedPage: Int,
+    chatCount: Int,
+    modelCount: Int,
     onTabSelected: (Int) -> Unit
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(color = MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(4.dp)
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
     ) {
-        tabItems.forEachIndexed { index, title ->
-            RowTabItem(
-                modifier = Modifier.weight(1f),
-                isSelected = index == selectedTabIndex,
-                title = title,
-                iconRes = if (index == 0) R.drawable.chatbot else R.drawable.sparkles,
-                onClick = { onTabSelected(index) }
-            )
-        }
+        LibraryTab(
+            modifier = Modifier.weight(1f),
+            title = "Chats",
+            iconRes = R.drawable.chatbot,
+            count = chatCount,
+            selected = selectedPage == 0,
+            shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
+            onClick = { onTabSelected(0) }
+        )
+        LibraryTab(
+            modifier = Modifier.weight(1f),
+            title = "Models",
+            iconRes = R.drawable.sparkles,
+            count = modelCount,
+            selected = selectedPage == 1,
+            shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
+            onClick = { onTabSelected(1) }
+        )
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun RowTabItem(
+private fun LibraryTab(
     modifier: Modifier = Modifier,
-    isSelected: Boolean,
     title: String,
     iconRes: Int,
+    count: Int,
+    selected: Boolean,
+    shapes: ToggleButtonShapes,
     onClick: () -> Unit
 ) {
-    val color by animateColorAsState(
-        if (isSelected) MaterialTheme.colorScheme.primary
-        else MaterialTheme.colorScheme.surfaceContainerHigh,
-        label = "tab_bg"
-    )
-    val contentColor by animateColorAsState(
-        if (isSelected) MaterialTheme.colorScheme.onPrimary
-        else MaterialTheme.colorScheme.onSurfaceVariant,
-        label = "tab_content"
-    )
-
-    Box(
+    ToggleButton(
+        checked = selected,
+        onCheckedChange = { onClick() },
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick)
-            .background(color = color)
-            .padding(vertical = 10.dp, horizontal = 12.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+            .heightIn(min = 48.dp)
+            .semantics { role = Role.Tab },
+        icon = {
             Icon(
                 painter = painterResource(iconRes),
                 contentDescription = null,
-                tint = contentColor,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(18.dp)
             )
-            Text(
-                text = title,
-                color = contentColor,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-            )
+        },
+        shapes = shapes,
+        colors = ToggleButtonDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            checkedContainerColor = MaterialTheme.colorScheme.primary,
+            checkedContentColor = MaterialTheme.colorScheme.onPrimary
+        ),
+        contentPadding = PaddingValues(horizontal = 8.dp)
+    ) {
+        Text(
+            text = title,
+            style = if (selected) {
+                MaterialTheme.typography.labelLargeEmphasized
+            } else {
+                MaterialTheme.typography.labelLarge
+            },
+            maxLines = 1
+        )
+        if (!selected) {
+            Surface(
+                modifier = Modifier.padding(start = 8.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary
+            ) {
+                Text(
+                    text = "$count",
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                    style = MaterialTheme.typography.labelSmallEmphasized
+                )
+            }
         }
     }
 }
@@ -1117,9 +1252,10 @@ private fun formatFileSize(bytes: Long): String {
 @Composable
 fun TabRowUiPreview() {
     TooAiTheme {
-        SegmentedTabRow(
-            tabItems = listOf("Chats (2)", "Models (3)"),
-            selectedTabIndex = 0,
+        LibraryTabs(
+            selectedPage = 0,
+            chatCount = 2,
+            modelCount = 3,
             onTabSelected = {}
         )
     }
@@ -1154,6 +1290,7 @@ fun LlmModelItemUiPreview() {
 fun ChatItemPreview() {
     TooAiTheme {
         ChatItem(
+            shape = GroupedListDefaults.shape(0, 1),
             chat = ChatSession(
                 title = "Chat with Qwen 3",
                 modelId = 1,
@@ -1172,7 +1309,8 @@ fun ChatItemPreview() {
                 createdAt = System.currentTimeMillis()
             ),
             onDelete = {},
-            onConfigClick = {},
+            onRename = {},
+            onExport = {},
             onChatItemClick = {}
         )
     }

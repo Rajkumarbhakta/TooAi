@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 @HiltViewModel
@@ -31,6 +32,12 @@ class ChatAndModelManagerViewModel @Inject constructor(
         viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
+    )
+
+    val chatPreviews = repository.chatPreviews.stateIn(
+        viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyMap()
     )
 
 
@@ -76,6 +83,12 @@ class ChatAndModelManagerViewModel @Inject constructor(
     fun deleteChat(chatSeason: ChatSession){
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteChatSeason(chatSeason)
+        }
+    }
+
+    fun exportChat(chatSeason: ChatSession, onReady: (String) -> Unit) {
+        viewModelScope.launch {
+            onReady(withContext(Dispatchers.IO) { repository.getChatTranscript(chatSeason) })
         }
     }
 

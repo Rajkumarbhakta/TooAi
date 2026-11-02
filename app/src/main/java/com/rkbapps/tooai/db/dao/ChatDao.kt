@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
 import com.rkbapps.tooai.db.entity.ChatMessage
+import com.rkbapps.tooai.db.entity.ChatReplyPreview
 import com.rkbapps.tooai.db.entity.ChatSession
 import kotlinx.coroutines.flow.Flow
 
@@ -39,6 +40,18 @@ interface ChatDao {
 
     @Query("SELECT * FROM chat_messages WHERE sessionId = :sessionId ORDER BY timestamp ASC")
     suspend fun getMessagesForSession(sessionId: String): List<ChatMessage>
+
+    // Latest non-error reply of each session.
+    @Query(
+        """
+        SELECT sessionId, content FROM chat_messages AS m
+        WHERE sender = 'ASSISTANT' AND isError = 0 AND timestamp = (
+            SELECT MAX(timestamp) FROM chat_messages
+            WHERE sessionId = m.sessionId AND sender = 'ASSISTANT' AND isError = 0
+        )
+        """
+    )
+    fun getLatestReplies(): Flow<List<ChatReplyPreview>>
 
     @Query("DELETE FROM chat_sessions WHERE id = :sessionId")
     suspend fun deleteSession(sessionId: String)

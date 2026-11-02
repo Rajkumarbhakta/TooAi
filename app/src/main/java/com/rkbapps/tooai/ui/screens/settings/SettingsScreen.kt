@@ -74,7 +74,8 @@ import com.rkbapps.tooai.ui.theme.AccentColor
 import com.rkbapps.tooai.ui.theme.GroupedListDefaults
 import com.rkbapps.tooai.ui.theme.SurfaceStatusBar
 import com.rkbapps.tooai.ui.theme.ToolShapes
-import com.rkbapps.tooai.ui.theme.isDark
+import com.rkbapps.tooai.ui.theme.pageContainerColor
+import com.rkbapps.tooai.ui.theme.rowContainerColor
 import com.rkbapps.tooai.ui.theme.toolPalette
 import kotlinx.coroutines.launch
 
@@ -109,11 +110,6 @@ fun SettingsScreen(
     val supportsDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val pageColor = if (MaterialTheme.colorScheme.isDark) {
-        MaterialTheme.colorScheme.surface
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerLow
-    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -121,11 +117,10 @@ fun SettingsScreen(
             LargeCollapsingTopBar(
                 title = "Settings",
                 scrollBehavior = scrollBehavior,
-                onNavigationIconClick = { backStack.removeLastOrNull() },
-                containerColor = pageColor
+                onNavigationIconClick = { backStack.removeLastOrNull() }
             )
         },
-        containerColor = pageColor,
+        containerColor = pageContainerColor(),
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
 
@@ -301,13 +296,6 @@ private fun SettingsGroup(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun settingsRowColor() = if (MaterialTheme.colorScheme.isDark) {
-    MaterialTheme.colorScheme.surfaceContainer
-} else {
-    MaterialTheme.colorScheme.surfaceContainerLowest
-}
-
-@Composable
 private fun RowContainer(
     shape: Shape,
     modifier: Modifier = Modifier,
@@ -317,7 +305,7 @@ private fun RowContainer(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(settingsRowColor())
+            .background(rowContainerColor())
             .then(modifier)
     ) {
         content()

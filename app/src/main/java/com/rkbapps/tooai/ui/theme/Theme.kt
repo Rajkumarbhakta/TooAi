@@ -55,6 +55,22 @@ val ColorScheme.isDark: Boolean
 val MaterialTheme.toolPalette: ToolPalette
     @Composable get() = if (colorScheme.isDark) DarkToolPalette else LightToolPalette
 
+// Page background for screens built from contained rows.
+@Composable
+fun pageContainerColor() = if (MaterialTheme.colorScheme.isDark) {
+    MaterialTheme.colorScheme.surface
+} else {
+    MaterialTheme.colorScheme.surfaceContainerLow
+}
+
+// One step above pageContainerColor. surfaceContainerLowest is darker than the page in dark mode.
+@Composable
+fun rowContainerColor() = if (MaterialTheme.colorScheme.isDark) {
+    MaterialTheme.colorScheme.surfaceContainer
+} else {
+    MaterialTheme.colorScheme.surfaceContainerLowest
+}
+
 // Screens stay composed through a transition, so two can overlap. Counted to avoid one
 // screen's exit resetting the icons of the one replacing it.
 private var surfaceStatusBarScreens = 0

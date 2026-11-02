@@ -7,9 +7,11 @@ import com.rkbapps.tooai.db.dao.ChatDao
 import com.rkbapps.tooai.db.dao.LlmModelDao
 import com.rkbapps.tooai.db.entity.ChatSession
 import com.rkbapps.tooai.db.entity.LlmModel
+import com.rkbapps.tooai.ui.screens.chat.removePromptIfApplied
 import com.rkbapps.tooai.utils.ModelConfigs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
@@ -24,6 +26,9 @@ class ChatAndModelManagerRepository @Inject constructor(
 
     val llmModels = llmModelDao.getAllLlmModels()
     val chatSessions = chatDao.getAllSessions()
+    val chatPreviews = chatDao.getLatestReplies().map { replies ->
+        replies.associate { it.sessionId to it.content }
+    }
 
 
     fun importModel(
@@ -114,6 +119,14 @@ class ChatAndModelManagerRepository @Inject constructor(
         }catch (e: Exception){
             Log.e("Importing File","Failed to delete from database",e)
         }
+    }
+
+    suspend fun getChatTranscript(chatSeason: ChatSession): String {
+        val messages = chatDao.getMessagesForSession(chatSeason.id).joinToString("\n\n") { message ->
+            val sender = if (message.sender == "USER") "You" else "AI"
+            "$sender: ${removePromptIfApplied(message.content)}"
+        }
+        return "${chatSeason.title}\n\n$messages"
     }
 
     suspend fun deleteChatSeason(chatSeason: ChatSession){

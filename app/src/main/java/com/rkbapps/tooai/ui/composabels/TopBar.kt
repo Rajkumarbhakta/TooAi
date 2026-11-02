@@ -17,6 +17,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import com.rkbapps.tooai.R
+import com.rkbapps.tooai.ui.theme.pageContainerColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,7 +81,7 @@ fun LargeCollapsingTopBar(
     title: String,
     scrollBehavior: TopAppBarScrollBehavior,
     onNavigationIconClick: () -> Unit,
-    containerColor: Color = MaterialTheme.colorScheme.surface,
+    containerColor: Color = pageContainerColor(),
     actions: @Composable (RowScope.() -> Unit) = {},
 ) {
     LargeFlexibleTopAppBar(
