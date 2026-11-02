@@ -207,6 +207,11 @@ Also uncommitted and worth knowing:
 - The sheet needs `imePadding()` — without it the keyboard covers the `PROMPT` page composer.
   Only that page has a text field, so it's easy to miss.
 
+**Status bar**
+- Icons are chosen for the `primary` top bars. A migrated screen with a surface header must call
+  `SurfaceStatusBar()`. It is counted, because two screens overlap during a transition.
+- Every migrated screen except Home uses `LargeCollapsingTopBar`, added as each page is migrated.
+
 **Misc**
 - XML comments cannot contain `--`; it fails the manifest merger with an opaque parse error.
 - `getPromptTypeIfApplied()` in `ChatScreen.kt` is now derived from `listOfPrompts` rather than a

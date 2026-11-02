@@ -17,6 +17,7 @@ import com.google.ai.edge.litertlm.ExperimentalFlags
 import com.rkbapps.tooai.db.PreferenceManager
 import com.rkbapps.tooai.navigation.NavManager
 import com.rkbapps.tooai.navigation.NavigationEntry
+import com.rkbapps.tooai.ui.theme.AccentColor
 import com.rkbapps.tooai.ui.theme.TooAiTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.SharingStarted
@@ -50,13 +51,31 @@ class MainActivity : ComponentActivity() {
                 false
             )
 
+        val isDynamicColor = preferenceManager.getBooleanPreference(PreferenceManager.IS_DYNAMIC_COLOR, true)
+            .stateIn(
+                lifecycleScope,
+                SharingStarted.Lazily,
+                true
+            )
+
+        val accentColor = preferenceManager.getStringPreference(PreferenceManager.ACCENT_COLOR)
+            .stateIn(
+                lifecycleScope,
+                SharingStarted.Lazily,
+                null
+            )
+
         setContent {
 
             val isSystemTheme by isSystemTheme.collectAsStateWithLifecycle()
             val darkTheme by isDarkTheme.collectAsStateWithLifecycle()
+            val dynamicColor by isDynamicColor.collectAsStateWithLifecycle()
+            val accent by accentColor.collectAsStateWithLifecycle()
 
             TooAiTheme(
-                darkTheme = if (isSystemTheme) isSystemInDarkTheme() else darkTheme
+                darkTheme = if (isSystemTheme) isSystemInDarkTheme() else darkTheme,
+                dynamicColor = dynamicColor,
+                accentColor = AccentColor.fromName(accent)
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),

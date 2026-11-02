@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -27,6 +28,8 @@ class PreferenceManager @Inject constructor(
     companion object{
         val IS_USE_SYSTEM_THEME = booleanPreferencesKey("is_use_system_theme")
         val IS_DARK_THEME = booleanPreferencesKey("is_use_dark_theme")
+        val IS_DYNAMIC_COLOR = booleanPreferencesKey("is_dynamic_color")
+        val ACCENT_COLOR = stringPreferencesKey("accent_color")
         // Model the AI Writer preselects so the user isn't asked on every invocation.
         val LAST_USED_MODEL_ID = longPreferencesKey("last_used_model_id")
     }

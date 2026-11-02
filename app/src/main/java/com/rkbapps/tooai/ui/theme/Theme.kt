@@ -2,6 +2,7 @@ package com.rkbapps.tooai.ui.theme
 
 import android.app.Activity
 import android.os.Build
+import android.view.View
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialExpressiveTheme
@@ -21,6 +22,7 @@ import androidx.core.view.WindowCompat
 fun TooAiTheme(
     darkTheme: Boolean = isSystemInDarkTheme(), // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
+    accentColor: AccentColor = AccentColor.INDIGO,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -28,15 +30,13 @@ fun TooAiTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        darkTheme -> DarkColorScheme.withAccent(accentColor, darkTheme = true)
+        else -> LightColorScheme.withAccent(accentColor, darkTheme = false)
     }
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as Activity).window
-            // Icons contrast with the primary-colored top bars, not the surface.
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
+            updateStatusBarIcons(view, darkTheme)
         }
     }
 
@@ -55,15 +55,28 @@ val ColorScheme.isDark: Boolean
 val MaterialTheme.toolPalette: ToolPalette
     @Composable get() = if (colorScheme.isDark) DarkToolPalette else LightToolPalette
 
-// For screens without a primary-colored top bar. Restores the theme default on exit.
+// Screens stay composed through a transition, so two can overlap. Counted to avoid one
+// screen's exit resetting the icons of the one replacing it.
+private var surfaceStatusBarScreens = 0
+
+// Icons contrast with the primary-colored top bars unless a SurfaceStatusBar screen is showing.
+private fun updateStatusBarIcons(view: View, darkTheme: Boolean) {
+    val window = (view.context as Activity).window
+    WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars =
+        if (surfaceStatusBarScreens > 0) !darkTheme else darkTheme
+}
+
+// For screens without a primary-colored top bar.
 @Composable
 fun SurfaceStatusBar() {
     val view = LocalView.current
     val darkTheme = MaterialTheme.colorScheme.isDark
     DisposableEffect(view, darkTheme) {
-        val window = (view.context as Activity).window
-        val controller = WindowCompat.getInsetsController(window, view)
-        controller.isAppearanceLightStatusBars = !darkTheme
-        onDispose { controller.isAppearanceLightStatusBars = darkTheme }
+        surfaceStatusBarScreens++
+        updateStatusBarIcons(view, darkTheme)
+        onDispose {
+            surfaceStatusBarScreens--
+            updateStatusBarIcons(view, darkTheme)
+        }
     }
 }

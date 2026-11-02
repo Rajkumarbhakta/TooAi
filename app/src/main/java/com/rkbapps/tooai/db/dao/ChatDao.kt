@@ -43,6 +43,10 @@ interface ChatDao {
     @Query("DELETE FROM chat_sessions WHERE id = :sessionId")
     suspend fun deleteSession(sessionId: String)
 
+    // chat_messages rows go with their session via ON DELETE CASCADE.
+    @Query("DELETE FROM chat_sessions")
+    suspend fun deleteAllSessions()
+
     @Query("DELETE FROM chat_messages WHERE sessionId = :sessionId")
     suspend fun deleteMessagesForSession(sessionId: String)
 }
