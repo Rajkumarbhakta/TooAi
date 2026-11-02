@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import com.rkbapps.tooai.R
 import com.rkbapps.tooai.ui.theme.pageContainerColor
 
@@ -84,10 +85,19 @@ fun LargeCollapsingTopBar(
     containerColor: Color = pageContainerColor(),
     navigationIcon: Int = R.drawable.arrow_back,
     navigationContentDescription: String = "navigation up",
+    subtitle: (@Composable () -> Unit)? = null,
     actions: @Composable (RowScope.() -> Unit) = {},
 ) {
     LargeFlexibleTopAppBar(
-        title = { Text(text = title, fontWeight = FontWeight.ExtraBold) },
+        title = {
+            Text(
+                text = title,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
+        subtitle = subtitle,
         navigationIcon = {
             IconButton(onClick = onNavigationIconClick) {
                 Icon(

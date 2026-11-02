@@ -15,6 +15,7 @@ data class ChatState(
     val isResponding: Boolean = false,
     val messages: List<ChatMessage> = emptyList(),
     val sessionId: String? = null,
+    val sessionTitle: String? = null,
     val currentPromptType: Prompts? = null
 )
 

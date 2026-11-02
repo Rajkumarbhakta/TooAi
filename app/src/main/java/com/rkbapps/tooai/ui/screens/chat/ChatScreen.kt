@@ -10,36 +10,45 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.BottomAppBarDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,13 +56,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -63,150 +72,92 @@ import com.halilibo.richtext.commonmark.Markdown
 import com.halilibo.richtext.ui.material3.RichText
 import com.rkbapps.tooai.R
 import com.rkbapps.tooai.db.entity.LlmModel
-import com.rkbapps.tooai.ui.composabels.TopBar
+import com.rkbapps.tooai.ui.composabels.LargeCollapsingTopBar
+import com.rkbapps.tooai.ui.theme.SurfaceStatusBar
+import com.rkbapps.tooai.ui.theme.ToolShapes
+import com.rkbapps.tooai.ui.theme.toolPalette
 import com.rkbapps.tooai.utils.PredefinePrompts
 import com.rkbapps.tooai.utils.Prompts
 import com.rkbapps.tooai.utils.TypeOfPrompt
 import com.rkbapps.tooai.utils.copyText
 import com.rkbapps.tooai.utils.roundTo2Decimals
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     backStack: SnapshotStateList<Any>,viewModel: ChatViewModel = hiltViewModel(),
 ) {
+    SurfaceStatusBar()
+
     val state by viewModel.chatState.collectAsStateWithLifecycle()
     val llmModels by viewModel.llmModels.collectAsStateWithLifecycle()
     var messageText by remember { mutableStateOf("") }
 
     // Bottom sheet state
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
     var showModelSheet by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     // prompt sheet
     var showPromptSheet by remember { mutableStateOf(false) }
-    val promptSheetState = rememberModalBottomSheetState()
+    val promptSheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
 
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val modelName = state.llmModel?.displayName
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopBar(
-                title = {
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(100.dp))
-                            .background(
-                                color = Color.White.copy(alpha = 0.2f)
-                            )
-                            .clickable { showModelSheet = true }
-                            .padding(8.dp)
-                        ,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            state.llmModel?.displayName?:"Chat", style = MaterialTheme.typography.titleMedium,
-                            overflow = TextOverflow.MiddleEllipsis,
-                            maxLines = 1
+            LargeCollapsingTopBar(
+                title = state.sessionTitle ?: "Chat",
+                scrollBehavior = scrollBehavior,
+                onNavigationIconClick = { backStack.removeLastOrNull() },
+                containerColor = MaterialTheme.colorScheme.surface,
+                subtitle = modelName?.let { name ->
+                    {
+                        ModelChip(
+                            name = name,
+                            isReady = state.instance != null,
+                            enabled = !state.isChatRunning,
+                            onClick = { showModelSheet = true }
                         )
-                        if (state.llmModel!=null){
-                            Icon(
-                                painter = painterResource(R.drawable.arrow_drop_down),
-                                contentDescription = "ChangeModel"
-                            )
-                        }
+                    }
+                },
+                actions = {
+                    FilledTonalIconButton(
+                        onClick = viewModel::startNewChat,
+                        enabled = !state.isChatRunning && state.messages.isNotEmpty(),
+                        modifier = Modifier.size(48.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Icon(painter = painterResource(R.drawable.add), "New chat")
                     }
                 }
-            ) {
-                backStack.removeLastOrNull()
-            }
+            )
         },
         bottomBar = {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
-                    .background(color = MaterialTheme.colorScheme.secondaryContainer)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(BottomAppBarDefaults.windowInsets.asPaddingValues())
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    TextField(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp, max = 120.dp)
-                            .padding(bottom = 10.dp),
-                        value = messageText,
-                        onValueChange = { messageText = it },
-                        placeholder = { Text("Ask tooai") },
-                        shape = RoundedCornerShape(100.dp),
-                        trailingIcon = {
-                            when{
-                                state.modelInitializingStatus.isLoading && state.instance == null ->{
-                                    Box(
-                                        modifier = Modifier.size(24.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 3.dp
-                                        )
-                                    }
-                                }
-                                state.isChatRunning ->{
-                                    Box(
-                                        modifier = Modifier.size(24.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 3.dp
-                                        )
-                                    }
-                                }
-                                else->{
-                                    FilledIconButton(
-                                        onClick = {
-                                            if (messageText.isNotBlank()) {
-                                                viewModel.sendMessage(messageText)
-                                                messageText = ""
-                                            }
-                                        }
-                                    ) {
-                                        Icon(painter = painterResource(R.drawable.send),"Send message")
-                                    }
-                                }
-                            }
-
-                        },
-                        colors = TextFieldDefaults.colors(
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            disabledIndicatorColor = Color.Transparent
-                        )
-                    )
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp,),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Always available, so the sheet can be reopened to swap the active
-                        // prompt instead of having to clear it first.
-                        Icon(
-                            painter = painterResource(R.drawable.tune),
-                            contentDescription = "Prompt suggestions",
-                            modifier = Modifier.clickable{showPromptSheet = true}
-                        )
-                        state.currentPromptType?.let { prompt->
-                            PromptChip(prompt = prompt, showClose = true) {
-                                viewModel.selectAPredefinePrompt(null)
-                            }
-                        }
-                    }
-                }
-            }
-        }
+            ChatComposer(
+                messageText = messageText,
+                onMessageChange = { messageText = it },
+                placeholder = modelName?.let { "Message $it" } ?: "Message",
+                isLoadingModel = state.modelInitializingStatus.isLoading && state.instance == null,
+                isGenerating = state.isChatRunning,
+                selectedPrompt = state.currentPromptType,
+                onClearPrompt = { viewModel.selectAPredefinePrompt(null) },
+                onShowPrompts = { showPromptSheet = true },
+                onSend = {
+                    viewModel.sendMessage(messageText)
+                    messageText = ""
+                },
+                onStop = viewModel::stopGeneration
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.surface
     ) {innerPadding->
 
         // Bottom Sheet for model selection
@@ -251,40 +202,36 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp)
         ) {
-            if (state.modelInitializingStatus.isLoading) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            if (state.modelInitializingStatus.isLoading && state.messages.isNotEmpty()) {
+                LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
 
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(bottom = 8.dp),
-                reverseLayout = true
-            ) {
-                item {
-                    Spacer(modifier = Modifier.size(8.dp))
-                }
-                items(
-                    state.messages.reversed(),
-                    key = { it.id }
-                ) { message ->
-                    when(message.type){
-                        ChatType.CHAT -> {
-                            ChatMessageItem(
-                                modifier = Modifier.padding(start = 30.dp),
+            if (state.messages.isEmpty()) {
+                ChatEmptyState(
+                    modifier = Modifier.weight(1f),
+                    isLoading = state.modelInitializingStatus.isLoading,
+                    error = state.modelInitializingStatus.error,
+                    modelName = modelName
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    reverseLayout = true,
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.Bottom)
+                ) {
+                    items(
+                        state.messages.reversed(),
+                        key = { it.id }
+                    ) { message ->
+                        when(message.type){
+                            ChatType.CHAT -> UserMessageItem(message = message)
+                            ChatType.ASSISTANT -> AssistantMessageItem(
                                 message = message,
-                                alignment = Alignment.End,
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                            )
-                        }
-                        ChatType.ASSISTANT -> {
-                            ChatMessageItem(
-                                modifier = Modifier.padding(end = 30.dp),
-                                message = message,
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                alignment = Alignment.Start
+                                modelName = modelName,
+                                isGenerating = state.isChatRunning &&
+                                        message.id == state.messages.last().id
                             )
                         }
                     }
@@ -296,142 +243,376 @@ fun ChatScreen(
 }
 
 @Composable
-fun ChatMessageItem(
-    modifier: Modifier = Modifier,
-    message: ChatMessage,
-    alignment: Alignment.Horizontal,
-    color: Color,
+private fun ModelChip(
+    name: String,
+    isReady: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
 ) {
-    val context = LocalContext.current
-    var isStatsVisible by remember { mutableStateOf(false) }
-    var isExpanded by remember { mutableStateOf(false) }
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    ) {
+        Row(
+            modifier = Modifier
+                .heightIn(min = 32.dp)
+                .padding(start = 8.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(
+                        color = if (isReady) {
+                            MaterialTheme.toolPalette.qr.action
+                        } else {
+                            MaterialTheme.colorScheme.outline
+                        },
+                        shape = CircleShape
+                    )
+            )
+            Text(
+                text = "$name · CPU",
+                modifier = Modifier.weight(1f, fill = false),
+                style = MaterialTheme.typography.labelMediumEmphasized,
+                maxLines = 1,
+                overflow = TextOverflow.MiddleEllipsis
+            )
+            Icon(
+                painter = painterResource(R.drawable.arrow_drop_down),
+                contentDescription = "Change model",
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
 
-    val prompt =  getPromptTypeIfApplied(message.message)
-    val isPromptApplied = prompt!=null
-
-
-    
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ChatEmptyState(
+    modifier: Modifier = Modifier,
+    isLoading: Boolean,
+    error: String?,
+    modelName: String?
+) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(4.dp),
-        horizontalAlignment = alignment,
-        verticalArrangement = Arrangement.spacedBy(5.dp)
+            .padding(32.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Card(
-            onClick = {
-                if (message.type == ChatType.ASSISTANT){
-                    isExpanded = !isExpanded
-                }
-                isStatsVisible = false
-            },
-            colors = CardDefaults.cardColors(containerColor = color)
-        ) {
-            if (isPromptApplied){
-                PromptChip(
-                    prompt = Prompts(type = prompt, subType = "", prompt = ""),
-                    showClose = false
-                ) { }
-            }
-
-            if (message.isResponding){
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .size(24.dp),
-                    strokeWidth = 3.dp
+        when {
+            error != null -> Text(
+                text = error,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center
+            )
+            isLoading -> {
+                ContainedLoadingIndicator(modifier = Modifier.size(64.dp))
+                Text(
+                    text = "Warming up the model…",
+                    style = MaterialTheme.typography.titleMediumEmphasized
                 )
-            }else{
-                RichText(
-                    modifier = Modifier
-                        .background(color)
-                        .padding(8.dp),
-                ){
-                    if (isPromptApplied){
-                        val updatedMessage = removePromptIfApplied(message.message)
-                        Markdown(content = updatedMessage)
-                    }else{
-                        Markdown(content = message.message)
-                    }
-                }
             }
-        }
-
-        AnimatedVisibility(
-            visible = message.statistics!=null && isExpanded
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                //show stats button
+            else -> {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(100.dp))
-                        .background(color = MaterialTheme.colorScheme.primaryContainer)
-                        .clickable {
-                            isStatsVisible = !isStatsVisible
-                        }
-                        .padding(10.dp)
-                ){
-                    Text(
-                        if (isStatsVisible)  "Hide stats"
-                        else "Show stats"
-                        , style = MaterialTheme.typography.labelSmall)
-                }
-                // copy button
-                ChatActionButtons(
-                    icon = R.drawable.content_copy,
-                    title = "Copy"
+                        .size(72.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = ToolShapes.AiChat.toShape()
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    context.copyText(message.message)
+                    Icon(
+                        painter = painterResource(R.drawable.chatbot),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(36.dp)
+                    )
                 }
-                //share button
-                ChatActionButtons(
-                    icon = R.drawable.share,
-                    title = "Share"
-                ){
-                    Intent(Intent.ACTION_SEND).apply {
-                        putExtra(Intent.EXTRA_TEXT, message.message)
-                        type = "text/plain"
-                    }.also {
-                        context.startActivity(it)
-                    }
+                Text(
+                    text = "Start a conversation",
+                    style = MaterialTheme.typography.titleMediumEmphasized
+                )
+                modelName?.let {
+                    Text(
+                        text = "$it runs entirely on this device.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ChatComposer(
+    messageText: String,
+    onMessageChange: (String) -> Unit,
+    placeholder: String,
+    isLoadingModel: Boolean,
+    isGenerating: Boolean,
+    selectedPrompt: Prompts?,
+    onClearPrompt: () -> Unit,
+    onShowPrompts: () -> Unit,
+    onSend: () -> Unit,
+    onStop: () -> Unit
+) {
+    val fieldColor = MaterialTheme.colorScheme.surfaceContainerHigh
+
+    Surface(color = MaterialTheme.colorScheme.surface) {
+        Column(
+            modifier = Modifier
+                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+                .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            selectedPrompt?.let { prompt ->
+                PromptChip(prompt = prompt, showClose = true, onClick = onClearPrompt)
+            }
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TextField(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 56.dp, max = 120.dp),
+                    value = messageText,
+                    onValueChange = onMessageChange,
+                    placeholder = {
+                        Text(text = placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
+                    shape = RoundedCornerShape(28.dp),
+                    trailingIcon = {
+                        // Always available, so the sheet can be reopened to swap the active
+                        // prompt instead of having to clear it first.
+                        IconButton(onClick = onShowPrompts) {
+                            Icon(
+                                painter = painterResource(R.drawable.tune),
+                                contentDescription = "Prompt suggestions"
+                            )
+                        }
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = fieldColor,
+                        unfocusedContainerColor = fieldColor,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent
+                    )
+                )
+                val canSend = !isLoadingModel && !isGenerating && messageText.isNotBlank()
+                FilledIconButton(
+                    onClick = if (isGenerating) onStop else onSend,
+                    enabled = isGenerating || canSend,
+                    modifier = Modifier.size(56.dp),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    when {
+                        isLoadingModel -> LoadingIndicator(modifier = Modifier.size(36.dp))
+                        isGenerating -> Icon(
+                            painter = painterResource(R.drawable.stop),
+                            contentDescription = "Stop generating"
+                        )
+                        else -> Icon(
+                            painter = painterResource(R.drawable.send),
+                            contentDescription = "Send message"
+                        )
+                    }
+                }
+            }
+            Text(
+                text = "Runs offline on this device · AI can make mistakes",
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun UserMessageItem(message: ChatMessage) {
+    val prompt = getPromptTypeIfApplied(message.message)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 48.dp),
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        prompt?.let {
+            PromptChip(
+                prompt = Prompts(type = it, subType = "", prompt = ""),
+                showClose = false
+            ) { }
+        }
+        Surface(
+            shape = RoundedCornerShape(
+                topStart = 24.dp,
+                topEnd = 24.dp,
+                bottomEnd = 6.dp,
+                bottomStart = 24.dp
+            ),
+            color = MaterialTheme.colorScheme.primary
+        ) {
+            Text(
+                text = removePromptIfApplied(message.message),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun AssistantMessageItem(
+    message: ChatMessage,
+    modelName: String?,
+    isGenerating: Boolean
+) {
+    if (isGenerating && message.message.isEmpty()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            ContainedLoadingIndicator(modifier = Modifier.size(48.dp))
+            Text(
+                text = "Thinking…",
+                style = MaterialTheme.typography.titleSmallEmphasized
+            )
+        }
+        return
+    }
+
+    val context = LocalContext.current
+    var isStatsVisible by remember { mutableStateOf(false) }
+    val statistics = message.statistics
+    val statsSummary = statistics?.let {
+        listOfNotNull(
+            it.decodeSpeed?.let { speed -> "${speed.roundTo2Decimals()} tok/s" },
+            it.tokenUsed?.let { tokens -> "$tokens tokens" }
+        ).joinToString(" · ")
+    }.orEmpty()
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        modelName?.let {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.sparkles),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.labelLargeEmphasized,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        RichText {
+            Markdown(content = message.message)
+        }
+
+        if (!isGenerating) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = statsSummary,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(enabled = statsSummary.isNotEmpty()) {
+                            isStatsVisible = !isStatsVisible
+                        },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                IconButton(onClick = { context.copyText(message.message) }) {
+                    Icon(
+                        painter = painterResource(R.drawable.content_copy),
+                        contentDescription = "Copy",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        Intent(Intent.ACTION_SEND).apply {
+                            putExtra(Intent.EXTRA_TEXT, message.message)
+                            type = "text/plain"
+                        }.also {
+                            context.startActivity(it)
+                        }
+                    }
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.share),
+                        contentDescription = "Share",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+
         AnimatedVisibility(
             visible = isStatsVisible
         ) {
-            Card{
+            Surface(
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainer
+            ) {
                 Row {
-                    if (message.statistics?.tokenUsed!=null){
+                    if (statistics?.tokenUsed!=null){
                         StatsItem(
                             title = "Token\nused",
-                            value = message.statistics.tokenUsed.toString(),
+                            value = statistics.tokenUsed.toString(),
                             unit = ""
                         )
                     }
 
-                    if (message.statistics?.timeToFirstToken!=null){
+                    if (statistics?.timeToFirstToken!=null){
                         StatsItem(
                             title = "1st token",
-                            value = message.statistics.timeToFirstToken.roundTo2Decimals().toString(),
+                            value = statistics.timeToFirstToken.roundTo2Decimals().toString(),
                             unit = "sec"
                         )
                     }
-                    if (message.statistics?.prefillSpeed!=null){
+                    if (statistics?.prefillSpeed!=null){
                         StatsItem(
                             title = "Prefill speed",
-                            value = message.statistics.prefillSpeed.roundTo2Decimals().toString(),
+                            value = statistics.prefillSpeed.roundTo2Decimals().toString(),
                             unit = "tokens/s"
                         )
                     }
-                    if (message.statistics?.totalLatency!=null){
+                    if (statistics?.totalLatency!=null){
                         StatsItem(
                             title = "Latency",
-                            value = message.statistics.totalLatency.roundTo2Decimals().toString(),
+                            value = statistics.totalLatency.roundTo2Decimals().toString(),
                             unit = "sec"
                         )
                     }
@@ -467,16 +648,30 @@ fun PromptChip(
     showClose: Boolean,
     onClick: () -> Unit
     ) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(color = MaterialTheme.colorScheme.primary)
-            .clickable(onClick = onClick)
-            .padding(4.dp)
+    val label = prompt.type.displayString + (if(prompt.subType.isNotBlank())" : ${prompt.subType}" else "")
+    Surface(
+        modifier = modifier,
+        onClick = onClick,
+        enabled = showClose,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
     ){
-        Text(prompt.type.displayString + (if(prompt.subType.isNotBlank())" : ${prompt.subType}" else ""), color = MaterialTheme.colorScheme.onPrimary)
-        if (showClose)
-        Icon(painter = painterResource(R.drawable.close),"", tint = MaterialTheme.colorScheme.onPrimary)
+        Row(
+            modifier = Modifier
+                .heightIn(min = 32.dp)
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(label, style = MaterialTheme.typography.labelLargeEmphasized)
+            if (showClose)
+            Icon(
+                painter = painterResource(R.drawable.close),
+                contentDescription = "Remove prompt",
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 }
 
@@ -509,7 +704,7 @@ fun ChatPromptSuggestionSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         "Prompt suggestions",
-                        style = MaterialTheme.typography.headlineSmall
+                        style = MaterialTheme.typography.headlineSmallEmphasized
                     )
                     Text(
                         "Added in front of your next message",
@@ -533,7 +728,7 @@ fun ChatPromptSuggestionSheet(
                     item(key = "header-${type.name}") {
                         Text(
                             text = type.displayString,
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.titleSmallEmphasized,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(top = 16.dp, bottom = 2.dp)
                         )
@@ -567,14 +762,13 @@ private fun PromptSuggestionItem(
         else MaterialTheme.colorScheme.surfaceContainerHighest
     )
 
-    Card(
+    Surface(
         modifier = modifier.fillMaxWidth(),
         onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = containerColor,
-            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-            else MaterialTheme.colorScheme.onSurface
-        )
+        shape = MaterialTheme.shapes.large,
+        color = containerColor,
+        contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+        else MaterialTheme.colorScheme.onSurface
     ) {
         Row(
             modifier = Modifier
@@ -629,32 +823,6 @@ fun StatsItem(
 }
 
 @Composable
-fun ChatActionButtons(
-    modifier: Modifier = Modifier,
-    icon:Int,
-    title: String,
-    onClick: () -> Unit
-){
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(100.dp))
-            .background(color = MaterialTheme.colorScheme.primaryContainer)
-            .clickable(onClick = onClick)
-            .padding(10.dp),
-        verticalAlignment = Alignment.CenterVertically
-        , horizontalArrangement = Arrangement.spacedBy(5.dp)
-    ){
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = title,
-            modifier = Modifier.size(10.dp)
-        )
-        Text(title, style = MaterialTheme.typography.labelSmall)
-    }
-}
-
-
-@Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun ChatModelSelectionSheet(
     sheetState: SheetState,
@@ -674,8 +842,8 @@ fun ChatModelSelectionSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                "Available Models",
-                style = MaterialTheme.typography.headlineSmall,
+                "Available models",
+                style = MaterialTheme.typography.headlineSmallEmphasized,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
@@ -708,14 +876,15 @@ fun ModelListItem(
 ) {
     val color = animateColorAsState(
         if (isSelected) { MaterialTheme.colorScheme.primaryContainer }
-        else { MaterialTheme.colorScheme.secondaryContainer }
+        else { MaterialTheme.colorScheme.surfaceContainerHighest }
     )
-    Card(
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 4.dp),
         onClick = onSelectModel,
-        colors = CardDefaults.cardColors(containerColor = color.value)
+        shape = MaterialTheme.shapes.large,
+        color = color.value
     ) {
         Column(
             modifier = Modifier
@@ -732,7 +901,7 @@ fun ModelListItem(
                 ) {
                     Text(
                         text = model.displayName,
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleMediumEmphasized
                     )
                 }
                 if (isSelected) {

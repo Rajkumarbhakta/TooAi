@@ -9,6 +9,7 @@ import com.rkbapps.tooai.navigation.NavigationEntry
 import com.rkbapps.tooai.utils.Prompts
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -26,6 +27,8 @@ class ChatViewModel @Inject constructor(
         started = SharingStarted.Lazily,
         initialValue = emptyList()
     )
+
+    private var generationJob: Job? = null
 
     init {
         val route = MainActivity.backStack.lastOrNull()
@@ -55,8 +58,23 @@ class ChatViewModel @Inject constructor(
     }
 
     fun sendMessage(message: String) {
-        viewModelScope.launch {
+        val previousGeneration = generationJob
+        generationJob = viewModelScope.launch {
+            previousGeneration?.join()
             repository.sendMessage(message)
+        }
+    }
+
+    // Cancelling the coroutine alone leaves the native decode running.
+    fun stopGeneration() {
+        repository.cancelGeneration()
+        generationJob?.cancel()
+    }
+
+    fun startNewChat() {
+        viewModelScope.launch(Dispatchers.IO) {
+            generationJob?.join()
+            repository.startNewChat()
         }
     }
 

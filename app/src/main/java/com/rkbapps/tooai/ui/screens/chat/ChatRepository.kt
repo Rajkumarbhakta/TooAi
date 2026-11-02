@@ -16,6 +16,7 @@ import com.rkbapps.tooai.db.entity.ChatSession
 import com.rkbapps.tooai.utils.Prompts
 import com.rkbapps.tooai.utils.UiState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
@@ -26,6 +27,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 import com.rkbapps.tooai.db.entity.ChatMessage as ChatMessageEntity
 
 class ChatRepository @Inject constructor(
@@ -44,6 +46,10 @@ class ChatRepository @Inject constructor(
         private const val MIN_MESSAGES_TO_KEEP = 2 // Keep at least the last 2 message pairs
     }
     private var totalTokensUsed = 0
+
+    // A cancelled conversation rejects every later message, and closing it while the native
+    // decode unwinds crashes, so it is replaced just before the next send.
+    private var isConversationCancelled = false
 
     //for fresh chat
     suspend fun initializeModel(modelId: Long) {
@@ -84,24 +90,14 @@ class ChatRepository @Inject constructor(
                 )
             )
 
-            // Create a new session
-            val newSessionId = UUID.randomUUID().toString()
-            val session = ChatSession(
-                id = newSessionId,
-                modelId = modelId,
-                title = "Chat ${
-                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
-                }",
-                createdAt = System.currentTimeMillis(),
-                updatedAt = System.currentTimeMillis()
-            )
-            chatDao.insertSession(session)
+            val session = createSession(modelId)
 
             _chatState.update {
                 it.copy(
                     instance = LlmModelInstance(engine = engine, conversation = conversation),
                     modelInitializingStatus = UiState(data = true),
-                    sessionId = newSessionId
+                    sessionId = session.id,
+                    sessionTitle = session.title
                 )
             }
         } catch (e: Exception) {
@@ -116,6 +112,57 @@ class ChatRepository @Inject constructor(
             }
         }
 
+    }
+
+    private suspend fun createSession(modelId: Long): ChatSession {
+        val session = ChatSession(
+            modelId = modelId,
+            title = "Chat ${
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+            }",
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis()
+        )
+        chatDao.insertSession(session)
+        return session
+    }
+
+    // Reuses the loaded engine so the model doesn't reload.
+    suspend fun startNewChat() {
+        val state = _chatState.value
+        val instance = state.instance ?: return
+        val llmModel = state.llmModel ?: return
+        if (state.isChatRunning || state.messages.isEmpty()) return
+
+        try {
+            instance.conversation.close()
+            val conversation = instance.engine.createConversation(
+                ConversationConfig(
+                    samplerConfig = SamplerConfig(
+                        temperature = llmModel.temperature,
+                        topK = llmModel.topK,
+                        topP = llmModel.topP
+                    ),
+                    systemInstruction = Contents.of(getSystemPrompt())
+                )
+            )
+            val session = createSession(llmModel.id)
+            totalTokensUsed = 0
+            isConversationCancelled = false
+            _chatState.update {
+                it.copy(
+                    instance = instance.copy(conversation = conversation),
+                    sessionId = session.id,
+                    sessionTitle = session.title,
+                    messages = emptyList()
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("ChatRepository", "startNewChat: ${e.localizedMessage}", e)
+            _chatState.update {
+                it.copy(modelInitializingStatus = UiState(error = "Couldn't start a new chat"))
+            }
+        }
     }
 
     //for old chats
@@ -201,6 +248,7 @@ class ChatRepository @Inject constructor(
                     instance = LlmModelInstance(engine = engine, conversation = conversation),
                     modelInitializingStatus = UiState(data = true),
                     sessionId = sessionId,
+                    sessionTitle = session.title,
                     messages = messages
                 )
             }
@@ -233,6 +281,10 @@ class ChatRepository @Inject constructor(
             message
         }
         Log.d("ChatRepository", "sendMessage: $message")
+        if (isConversationCancelled) {
+            _chatState.value.instance?.let { reduceContextAndReinitialize(it) }
+            isConversationCancelled = false
+        }
         val instance = _chatState.value.instance ?: return
         val sessionId = _chatState.value.sessionId ?: return
 
@@ -261,6 +313,11 @@ class ChatRepository @Inject constructor(
         _chatState.update { it.copy(messages = currentMessages) }
 
         generateResponse(message, instance, false, aiMessageId, sessionId)
+    }
+
+    fun cancelGeneration() {
+        _chatState.value.instance?.conversation?.cancelProcess()
+        isConversationCancelled = true
     }
 
     fun selectAPredefinePrompt(prompt: Prompts?){
@@ -343,6 +400,10 @@ class ChatRepository @Inject constructor(
                     state.copy(messages = messages)
                 }
             }
+        } catch (e: CancellationException) {
+            // Must stay ahead of the catch below, which would retry a stopped reply.
+            withContext(NonCancellable) { keepStoppedResponse(aiMessageId, sessionId) }
+            throw e
         } catch (e: Exception) {
             Log.e("ChatRepository", "generateResponse: ${e.localizedMessage}",e)
             if (!isRetry) {
@@ -362,6 +423,21 @@ class ChatRepository @Inject constructor(
         }
     }
 
+
+    private suspend fun keepStoppedResponse(aiMessageId: String, sessionId: String) {
+        _chatState.update { state ->
+            val messages = state.messages.toMutableList()
+            val msgIndex = messages.indexOfFirst { it.id == aiMessageId }
+            if (msgIndex != -1) {
+                val stopped = messages[msgIndex].copy(
+                    message = messages[msgIndex].message.ifEmpty { "Stopped." }
+                )
+                messages[msgIndex] = stopped
+                updateMessageInDb(stopped, sessionId)
+            }
+            state.copy(messages = messages, isResponding = false, isChatRunning = false)
+        }
+    }
 
     /**
      * Checks if context size is approaching the limit and reduces chat history if needed.
