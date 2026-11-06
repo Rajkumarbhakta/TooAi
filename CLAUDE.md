@@ -143,35 +143,9 @@ activity/AiWriterActivity.kt            intent parsing, result return, finish() 
 ui/screens/ai_writer/AiWriterState.kt   pages + helpers + state/Stage
 ui/screens/ai_writer/AiWriterViewModel.kt  engine, variants, cancellation
 ui/screens/ai_writer/AiWriterRepository.kt one-shot LiteRT (no ChatDao)
-ui/screens/ai_writer/AiWriterSheet.kt   all Compose (~1000 lines)
+ui/screens/ai_writer/AiWriterSheet.kt   all Compose (~1000 lines), restyled from the M3E tokens (no board exists)
 utils/PredefinePrompts.kt               every prompt string + type/sub-type enums
 ```
-
----
-
-## ⚠️ Uncommitted ML Kit GenAI scaffolding — currently dead code
-
-`AiWriterViewModel.kt` contains ~170 lines of Google ML Kit GenAI (Gemini Nano) sample code:
-`Proofreader`, `Summarizer`, `Rewriter` clients plus `prepareAndStart*` / `start*Request`
-functions.
-
-**None of it is reachable.** Nothing outside the ViewModel calls any of it — every UI path still
-goes through LiteRT-LM. The functions discard their results (`runInference(...).await().results`
-assigned and dropped; the streaming lambda body is an empty comment) and never touch
-`AiWriterState`. The only runtime effect is that three clients are constructed at ViewModel init
-and closed in `onCleared()`.
-
-Do not treat this as the architecture, and do not "fix" it silently — ask first whether the
-intent is to migrate Polish/Summarize/Proofread onto Gemini Nano (with LiteRT as fallback for
-devices without it) or to delete it.
-
-Also uncommitted and worth knowing:
-
-- `libs.versions.toml`: `genai-rewriting` uses `version.ref="summarization"`. The `rewriting`
-  alias on line 29 is unused. Same value today, so it compiles, but the two will drift.
-- `kotlinx-coroutines-guava` was already present; it's what makes `.await()` work on ML Kit's
-  `ListenableFuture`.
-- No R8 rules or manifest `<meta-data>` for GenAI feature auto-download.
 
 ---
 
@@ -197,7 +171,8 @@ Also uncommitted and worth knowing:
 
 **Compose**
 - An infinite `rememberInfiniteTransition` left running in an idle state burns a full CPU core.
-  `TypingDots` was being shown in `Stage.Idle` and did exactly that. Measure with
+  The old `TypingDots` was shown in `Stage.Idle` and did exactly that; its replacement,
+  `WorkingIndicator` (a `LoadingIndicator`), must likewise only appear while busy. Measure with
   `/proc/<pid>/stat` deltas — `top` output on this device is unreliable to parse.
 - `Modifier.rotate()` in a draw scope rotates the **geometry**, not just the brush. The animated
   gradient border clips to the border ring (`Path.combine(Difference, outer, inner)`) and rotates
