@@ -26,36 +26,19 @@ class RecognizedTextViewModel @Inject constructor(
 
     val recognitionState = repository.recognitionState
 
-    // Image chosen but not yet recognized. Held here so it survives configuration changes.
+    // The image being read, shown while recognition runs. Held here so it survives rotation.
     private val _pendingImage = MutableStateFlow<Uri?>(null)
     val pendingImage = _pendingImage.asStateFlow()
 
-    // A history row the user tapped. Null while the result dialog is showing a fresh scan.
-    private val _selectedHistoryItem = MutableStateFlow<RecognizedText?>(null)
-    val selectedHistoryItem = _selectedHistoryItem.asStateFlow()
-
-    fun onImagePicked(uri: Uri) {
-        _pendingImage.value = uri
-        repository.resetState()
-    }
-
-    fun clearPendingImage() {
-        _pendingImage.value = null
-        repository.resetState()
-    }
-
     fun recognize(context: Context, uri: Uri) {
+        _pendingImage.value = uri
         viewModelScope.launch {
             repository.recognize(context, uri)
         }
     }
 
-    fun onHistoryItemSelected(recognizedText: RecognizedText) {
-        _selectedHistoryItem.value = recognizedText
-    }
-
     fun dismissResult() {
-        _selectedHistoryItem.value = null
+        _pendingImage.value = null
         repository.resetState()
     }
 

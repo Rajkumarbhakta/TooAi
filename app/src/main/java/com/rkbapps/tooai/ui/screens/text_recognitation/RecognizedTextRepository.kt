@@ -1,6 +1,7 @@
 package com.rkbapps.tooai.ui.screens.text_recognitation
 
 import android.content.Context
+import android.graphics.Rect
 import android.net.Uri
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
@@ -26,7 +27,7 @@ class RecognizedTextRepository @Inject constructor(
 
     val recognizedTextList: Flow<List<RecognizedText>> = recognizedTextDao.getAllRecognizedText()
 
-    private val _recognitionState = MutableStateFlow<UiState<RecognizedText>>(UiState())
+    private val _recognitionState = MutableStateFlow<UiState<RecognitionResult>>(UiState())
     val recognitionState = _recognitionState.asStateFlow()
 
     suspend fun recognize(context: Context, imageUri: Uri) = withContext(Dispatchers.IO) {
@@ -39,9 +40,23 @@ class RecognizedTextRepository @Inject constructor(
                 _recognitionState.value = UiState(error = "No text found in this image.")
                 return@withContext
             }
-            val recognizedText = RecognizedText(id = 0, content = text.text)
+            val recognizedText = RecognizedText(
+                id = 0,
+                content = text.text,
+                timeMillis = System.currentTimeMillis()
+            )
             val id = recognizedTextDao.newRecognizedText(recognizedText)
-            _recognitionState.value = UiState(data = recognizedText.copy(id = id))
+            // Blocks are in upright coordinates, so a rotated photo's width and height swap.
+            val isSideways = inputImage.rotationDegrees % 180 != 0
+            _recognitionState.value = UiState(
+                data = RecognitionResult(
+                    text = recognizedText.copy(id = id),
+                    imageUri = imageUri,
+                    imageWidth = if (isSideways) inputImage.height else inputImage.width,
+                    imageHeight = if (isSideways) inputImage.width else inputImage.height,
+                    blocks = text.textBlocks.mapNotNull { it.boundingBox }
+                )
+            )
         } catch (e: Exception) {
             _recognitionState.value =
                 UiState(error = e.localizedMessage ?: "Unable to read text from this image.")
@@ -71,3 +86,13 @@ class RecognizedTextRepository @Inject constructor(
                 .addOnFailureListener { cont.resume(Result.failure(it)) }
         }
 }
+
+// A fresh scan, with the photo and where each block of text was found in it. History rows
+// only keep the text.
+data class RecognitionResult(
+    val text: RecognizedText,
+    val imageUri: Uri,
+    val imageWidth: Int,
+    val imageHeight: Int,
+    val blocks: List<Rect>
+)

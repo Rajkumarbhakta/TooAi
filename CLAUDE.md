@@ -66,7 +66,7 @@ JetBrains Runtime every run.
 
 - **DI**: Hilt. Only one module — `di/DatabaseModule.kt` (Gson, Room `Database`, all DAOs).
   Repositories are plain `@Inject constructor`, unscoped.
-- **DB**: Room v5, `app_database`. Entities `QrScan`, `RecognizedText`, `DocumentScans`,
+- **DB**: Room v6, `app_database`, hand-written migrations in `db/Database.kt`. Entities `QrScan`, `RecognizedText`, `DocumentScans`,
   `LlmModel`, `ChatSession`, `ChatMessage`.
 - **Nav**: Navigation 3 (`navigation/NavManager.kt`), back stack is a process-global
   `MainActivity.backStack` snapshot list. `ChatViewModel.init` reads its route off that static —
