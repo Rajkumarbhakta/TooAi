@@ -14,13 +14,13 @@ class BarcodeRepository @Inject constructor(
     private val _qrScanList = MutableStateFlow<List<QrScan>>(emptyList())
     val qrScanList: StateFlow<List<QrScan>> = _qrScanList
 
-    suspend fun addNewQrScan(qrScan: QrScan): Boolean {
+    // Returns the new row's id, or null when the insert failed.
+    suspend fun addNewQrScan(qrScan: QrScan): Long? {
         return try {
             qrScanDao.newQrScan(qrScan)
-            true
         } catch (e: Exception) {
             e.printStackTrace()
-            false
+            null
         }
     }
 
