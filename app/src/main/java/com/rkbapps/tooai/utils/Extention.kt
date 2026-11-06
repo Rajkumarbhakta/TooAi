@@ -15,8 +15,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import com.rkbapps.tooai.models.PdfDoc
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.File.separator
 import java.io.FileOutputStream
@@ -24,11 +22,14 @@ import java.io.OutputStream
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 fun Context.getActivity(): ComponentActivity? = when (this) {
     is ComponentActivity -> this
@@ -146,6 +147,39 @@ suspend fun savePdfToDocuments(context: Context, sourceUri: Uri,destinationPath:
     }
 }
 
+suspend fun saveImageToPictures(
+    context: Context,
+    sourceUri: Uri,
+    fileName: String,
+    destinationPath: String
+): Boolean = withContext(Dispatchers.IO) {
+    val resolver = context.contentResolver
+    val contentValues = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+        put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + separator + destinationPath)
+        put(MediaStore.MediaColumns.IS_PENDING, 1)
+    }
+    val itemUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+        ?: return@withContext false
+
+    try {
+        resolver.openOutputStream(itemUri)?.use { output ->
+            resolver.openInputStream(sourceUri)?.use { input ->
+                input.copyTo(output)
+            }
+        }
+        contentValues.clear()
+        contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+        resolver.update(itemUri, contentValues, null, null)
+        true
+    } catch (e: Exception) {
+        resolver.delete(itemUri, null, null)
+        Log.e("SaveImage", "Failed", e)
+        false
+    }
+}
+
 fun Context.getFileName(uri: Uri): String?{
     return try {
         when (uri.scheme) {
@@ -221,9 +255,26 @@ fun Long.toDateTimeString(
     return zdt.format(DateTimeFormatter.ofPattern(pattern).withLocale(locale))
 }
 
+// Section heading for lists grouped by day.
+fun dateGroupLabel(timestamp: Long): String {
+    val today = LocalDate.now()
+    val date = Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).toLocalDate()
+    return when (date) {
+        today -> "Today"
+        today.minusDays(1) -> "Yesterday"
+        else -> "Earlier"
+    }
+}
 
-
-
-
-
-
+fun formatFileSize(bytes: Long): String {
+    if (bytes <= 0) return "0 B"
+    val kb = bytes / 1024.0
+    val mb = kb / 1024.0
+    val gb = mb / 1024.0
+    return when {
+        gb >= 1.0 -> String.format(Locale.getDefault(), "%.2f GB", gb)
+        mb >= 1.0 -> String.format(Locale.getDefault(), "%.1f MB", mb)
+        kb >= 1.0 -> String.format(Locale.getDefault(), "%.0f KB", kb)
+        else -> "$bytes B"
+    }
+}

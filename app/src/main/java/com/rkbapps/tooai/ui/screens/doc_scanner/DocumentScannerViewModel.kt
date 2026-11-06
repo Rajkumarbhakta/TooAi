@@ -52,6 +52,12 @@ class DocumentScannerViewModel @Inject constructor(
         }
     }
 
+    fun savePagesAsImages(context: Context, uris: List<Uri>, onDone: (saved: Int) -> Unit){
+        viewModelScope.launch {
+            onDone(repository.savePagesAsImages(context, uris))
+        }
+    }
+
     fun deleteDocument(context: Context,documentScan: DocumentScans){
         viewModelScope.launch {
             repository.deleteDocument(context,documentScan)

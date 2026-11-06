@@ -58,8 +58,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ToggleButtonShapes
@@ -76,14 +74,11 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.role
@@ -101,6 +96,7 @@ import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.navigation.IdType
 import com.rkbapps.tooai.navigation.NavigationEntry
 import com.rkbapps.tooai.ui.composabels.LargeCollapsingTopBar
+import com.rkbapps.tooai.ui.composabels.PillSearchField
 import com.rkbapps.tooai.ui.screens.chat.removePromptIfApplied
 import com.rkbapps.tooai.ui.theme.GroupedListDefaults
 import com.rkbapps.tooai.ui.theme.SurfaceStatusBar
@@ -108,12 +104,11 @@ import com.rkbapps.tooai.ui.theme.TooAiTheme
 import com.rkbapps.tooai.ui.theme.pageContainerColor
 import com.rkbapps.tooai.ui.theme.rowContainerColor
 import com.rkbapps.tooai.utils.ModelConfigs
+import com.rkbapps.tooai.utils.dateGroupLabel
+import com.rkbapps.tooai.utils.formatFileSize
 import com.rkbapps.tooai.utils.getFileName
 import com.rkbapps.tooai.utils.getFileNameAndSize
 import com.rkbapps.tooai.utils.toDateTimeString
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
@@ -425,7 +420,7 @@ fun ChatAndModelManagerScreen(
                     }
                 }
 
-                LibrarySearchField(
+                PillSearchField(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     query = searchQuery,
                     placeholder = if (pagerState.currentPage == 0) "Search chats" else "Search models",
@@ -710,7 +705,7 @@ fun ChatList(
             }
         }
     } else {
-        val groups = remember(chats) { chats.groupBy { chatDateGroup(it.updatedAt) } }
+        val groups = remember(chats) { chats.groupBy { dateGroupLabel(it.updatedAt) } }
         LazyColumn(
             modifier = modifier
                 .fillMaxSize()
@@ -746,16 +741,6 @@ fun ChatList(
 
 private fun plainPreview(reply: String) =
     removePromptIfApplied(reply).replace(Regex("[*#`]"), "").replace(Regex("\\s+"), " ").trim()
-
-private fun chatDateGroup(timestamp: Long): String {
-    val today = LocalDate.now()
-    val date = Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).toLocalDate()
-    return when (date) {
-        today -> "Today"
-        today.minusDays(1) -> "Yesterday"
-        else -> "Earlier"
-    }
-}
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -1074,46 +1059,6 @@ private fun ParamBadge(label: String) {
     }
 }
 
-@Composable
-private fun LibrarySearchField(
-    modifier: Modifier = Modifier,
-    query: String,
-    placeholder: String,
-    onQueryChange: (String) -> Unit
-) {
-    val containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-    TextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = modifier.fillMaxWidth(),
-        placeholder = { Text(placeholder) },
-        leadingIcon = {
-            Icon(
-                imageVector = ImageVector.vectorResource(R.drawable.search),
-                contentDescription = null
-            )
-        },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(
-                        painter = painterResource(R.drawable.close),
-                        contentDescription = "Clear search"
-                    )
-                }
-            }
-        },
-        singleLine = true,
-        shape = CircleShape,
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = containerColor,
-            unfocusedContainerColor = containerColor,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent
-        )
-    )
-}
-
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun LibraryTabs(
@@ -1203,19 +1148,6 @@ private fun LibraryTab(
                 )
             }
         }
-    }
-}
-
-private fun formatFileSize(bytes: Long): String {
-    if (bytes <= 0) return "0 B"
-    val kb = bytes / 1024.0
-    val mb = kb / 1024.0
-    val gb = mb / 1024.0
-    return when {
-        gb >= 1.0 -> String.format(Locale.getDefault(), "%.2f GB", gb)
-        mb >= 1.0 -> String.format(Locale.getDefault(), "%.1f MB", mb)
-        kb >= 1.0 -> String.format(Locale.getDefault(), "%.0f KB", kb)
-        else -> "$bytes B"
     }
 }
 

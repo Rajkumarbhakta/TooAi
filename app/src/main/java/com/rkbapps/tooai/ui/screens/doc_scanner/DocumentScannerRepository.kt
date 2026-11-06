@@ -15,6 +15,7 @@ import com.rkbapps.tooai.db.dao.DocumentScansDao
 import com.rkbapps.tooai.db.entity.DocumentScans
 import com.rkbapps.tooai.utils.ScanModes
 import com.rkbapps.tooai.utils.UiState
+import com.rkbapps.tooai.utils.saveImageToPictures
 import com.rkbapps.tooai.utils.savePdfToDocuments
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -82,6 +83,16 @@ class DocumentScannerRepository @Inject constructor(
         }
         delay(1000.milliseconds)
         _docSavingState.value = UiState()
+    }
+
+    suspend fun savePagesAsImages(context: Context, uris: List<Uri>): Int = withContext(Dispatchers.IO) {
+        _docSavingState.value = UiState(isLoading = true)
+        val time = System.currentTimeMillis()
+        val saved = uris.withIndex().count { (index, uri) ->
+            saveImageToPictures(context, uri, "TooAi Scan - $time-${index + 1}.jpg", "TooAi")
+        }
+        _docSavingState.value = if (saved == uris.size) UiState() else UiState(error = "Unable to save all pages.")
+        saved
     }
 
     suspend fun deleteDocument(context: Context,documentScan: DocumentScans) = withContext(Dispatchers.IO){
