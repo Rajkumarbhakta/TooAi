@@ -44,7 +44,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalButton
@@ -87,7 +86,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rkbapps.tooai.R
@@ -109,12 +107,10 @@ import com.rkbapps.tooai.utils.formatFileSize
 import com.rkbapps.tooai.utils.getFileName
 import com.rkbapps.tooai.utils.getFileNameAndSize
 import com.rkbapps.tooai.utils.toDateTimeString
-import java.util.Locale
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatAndModelManagerScreen(
     backStack: SnapshotStateList<Any>,
@@ -128,23 +124,7 @@ fun ChatAndModelManagerScreen(
     val llmModels by viewModel.llmModels.collectAsStateWithLifecycle()
     val chatSessions by viewModel.chatSessions.collectAsStateWithLifecycle()
     val chatPreviews by viewModel.chatPreviews.collectAsStateWithLifecycle()
-
-    var searchQuery by remember { mutableStateOf("") }
-
-    val filteredModels = remember(llmModels, searchQuery) {
-        if (searchQuery.isBlank()) llmModels
-        else llmModels.filter {
-            it.displayName.contains(searchQuery, ignoreCase = true) ||
-                    it.name.contains(searchQuery, ignoreCase = true)
-        }
-    }
-
-    val filteredChats = remember(chatSessions, searchQuery) {
-        if (searchQuery.isBlank()) chatSessions
-        else chatSessions.filter {
-            it.title.contains(searchQuery, ignoreCase = true)
-        }
-    }
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
 
     val modelMap = remember(llmModels) {
         llmModels.associateBy { it.id }
@@ -424,7 +404,7 @@ fun ChatAndModelManagerScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     query = searchQuery,
                     placeholder = if (pagerState.currentPage == 0) "Search chats" else "Search models",
-                    onQueryChange = { searchQuery = it }
+                    onQueryChange = { viewModel.search(it) }
                 )
 
                 HorizontalPager(
@@ -433,7 +413,7 @@ fun ChatAndModelManagerScreen(
                 ) { page ->
                     when (page) {
                         0 -> ChatList(
-                            chats = filteredChats,
+                            chats = chatSessions,
                             isSearching = searchQuery.isNotBlank(),
                             modelMap = modelMap,
                             previews = chatPreviews,
@@ -455,10 +435,10 @@ fun ChatAndModelManagerScreen(
                             onBrowseModels = {
                                 scope.launch { pagerState.animateScrollToPage(1) }
                             },
-                            onClearSearch = { searchQuery = "" }
+                            onClearSearch = { viewModel.search("") }
                         )
                         1 -> ModelList(
-                            models = filteredModels,
+                            models = llmModels,
                             usedStorageBytes = llmModels.sumOf { it.sizeInBytes },
                             freeStorageBytes = freeStorageBytes,
                             modelCount = llmModels.size,
@@ -469,7 +449,7 @@ fun ChatAndModelManagerScreen(
                                 backStack.add(NavigationEntry.AiChat(id = model.id.toString(), type = IdType.MODEL))
                             },
                             onImportModel = launchModelPicker,
-                            onClearSearch = { searchQuery = "" }
+                            onClearSearch = { viewModel.search("") }
                         )
                     }
                 }

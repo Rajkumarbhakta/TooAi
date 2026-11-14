@@ -11,6 +11,8 @@ import com.rkbapps.tooai.ui.screens.chat.removePromptIfApplied
 import com.rkbapps.tooai.utils.ModelConfigs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
@@ -30,6 +32,13 @@ class ChatAndModelManagerRepository @Inject constructor(
         replies.associate { it.sessionId to it.content }
     }
 
+    val searchQuery: StateFlow<String>
+    field = MutableStateFlow("")
+
+
+    fun search(query:String){
+        searchQuery.value = query
+    }
 
     fun importModel(
         context: Context,
