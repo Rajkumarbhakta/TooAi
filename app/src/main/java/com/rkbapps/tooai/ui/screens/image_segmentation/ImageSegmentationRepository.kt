@@ -31,6 +31,7 @@ import java.io.IOException
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.core.graphics.createBitmap
 
 private const val SAVE_FOLDER = "TooAi"
 private const val RECENT_CUTOUT_COUNT = 10
@@ -42,7 +43,11 @@ class ImageSegmentationRepository @Inject constructor() {
     // back as noise on a Samsung S-series phone, so the combined cut-out is drawn from the subjects.
     private val segmenter  = SubjectSegmentation.getClient(
         SubjectSegmenterOptions.Builder()
-            .enableForegroundBitmap()
+            .enableMultipleSubjects(
+                SubjectSegmenterOptions.SubjectResultOptions.Builder()
+                    .enableSubjectBitmap()
+                    .build()
+            )
             .build()
     )
 
@@ -74,11 +79,10 @@ class ImageSegmentationRepository @Inject constructor() {
                 )
             }
             if (subjects.isEmpty()) {
-                _segmentationState.value =
-                    UiState(error = "No clear subject found. Try a photo with one main subject.")
+                _segmentationState.value = UiState(error = "No clear subject found. Try a photo with one main subject.")
                 return@withContext
             }
-            val foregroundBitmap = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+            val foregroundBitmap = createBitmap(bitmap.width, bitmap.height, config = Bitmap.Config.ARGB_8888)
             Canvas(foregroundBitmap).apply {
                 subjects.forEach { drawBitmap(it.bitmap, it.startX.toFloat(), it.startY.toFloat(), null) }
             }
