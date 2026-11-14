@@ -16,7 +16,9 @@ data class ChatState(
     val messages: List<ChatMessage> = emptyList(),
     val sessionId: String? = null,
     val sessionTitle: String? = null,
-    val currentPromptType: Prompts? = null
+    val currentPromptType: Prompts? = null,
+    // The chat's model was deleted, or its file is gone. The history still shows.
+    val modelUnavailable: Boolean = false
 )
 
 data class LlmModelInstance(val engine: Engine, val conversation: Conversation)

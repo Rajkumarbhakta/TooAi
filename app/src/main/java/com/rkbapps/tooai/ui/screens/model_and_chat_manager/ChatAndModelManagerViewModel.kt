@@ -99,6 +99,9 @@ class ChatAndModelManagerViewModel @Inject constructor(
         }
     }
 
+    suspend fun countChatsUsingModel(modelId: Long): Int =
+        withContext(Dispatchers.IO) { repository.countChatsUsingModel(modelId) }
+
     fun deleteModel(model: LlmModel){
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteModel(model = model)

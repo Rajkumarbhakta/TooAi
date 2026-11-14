@@ -13,16 +13,20 @@ import com.google.ai.edge.litertlm.SamplerConfig
 import com.rkbapps.tooai.db.dao.ChatDao
 import com.rkbapps.tooai.db.dao.LlmModelDao
 import com.rkbapps.tooai.db.entity.ChatSession
+import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.utils.Prompts
 import com.rkbapps.tooai.utils.UiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
@@ -51,68 +55,185 @@ class ChatRepository @Inject constructor(
     // decode unwinds crashes, so it is replaced just before the next send.
     private var isConversationCancelled = false
 
-    //for fresh chat
-    suspend fun initializeModel(modelId: Long) {
+    // A chat's model can be deleted, or its file can disappear while the row stays (cleared
+    // storage, for one). Neither can be loaded, so both count as unavailable.
+    private suspend fun findUsableModel(modelId: Long): LlmModel? =
+        llmModelDao.getLlmModelById(modelId)?.takeIf { File(it.path).exists() }
 
+    // Set as soon as a load is asked for, before it waits its turn, so the UI locks at once.
+    fun markModelLoading() {
         _chatState.update { it.copy(modelInitializingStatus = UiState(isLoading = true)) }
+    }
 
-        val llmModel = try {
-            llmModelDao.getLlmModelById(modelId)
-        } catch (_: Exception) {
-            null
-        }
-        if (llmModel == null) {
-            _chatState.update { it.copy(modelInitializingStatus = UiState(error = "Model not found")) }
+    // For a fresh chat. The session is created once the model has loaded.
+    suspend fun startWithModel(modelId: Long) {
+        val model = findUsableModel(modelId)
+        if (model == null) {
+            _chatState.update { it.copy(modelUnavailable = true, modelInitializingStatus = UiState()) }
             return
-        } else {
-            _chatState.update { it.copy(llmModel = llmModel) }
+        }
+        loadModel(model)
+    }
+
+    // For an existing chat. The history loads first and shows whatever happens to the model.
+    suspend fun loadSession(sessionId: String) {
+        val session = chatDao.getSessionById(sessionId)
+        if (session == null) {
+            _chatState.update { it.copy(modelInitializingStatus = UiState(error = "This chat no longer exists.")) }
+            return
+        }
+        val messages = chatDao.getMessagesForSession(sessionId).map { it.toChatMessage() }
+        _chatState.update {
+            it.copy(sessionId = session.id, sessionTitle = session.title, messages = messages)
         }
 
-        val engineConfig = EngineConfig(
-            modelPath = llmModel.path,
-            backend = Backend.CPU(),
-            visionBackend = null,
-            audioBackend = null,
-            maxNumTokens = llmModel.maxTokens
-        )
+        val model = findUsableModel(session.modelId)
+        if (model == null) {
+            _chatState.update { it.copy(modelUnavailable = true, modelInitializingStatus = UiState()) }
+            return
+        }
+        loadModel(model)
+    }
 
-        try {
-            val engine = Engine(engineConfig = engineConfig)
-            engine.initialize()
-            val conversation = engine.createConversation(
-                ConversationConfig(
-                    samplerConfig = SamplerConfig(
-                        temperature = llmModel.temperature,
-                        topK = llmModel.topK,
-                        topP = llmModel.topP
-                    ),
-                    systemInstruction = Contents.of(getSystemPrompt())
-                )
-            )
-
-            val session = createSession(modelId)
-
+    // The previous model is released before the new one loads: two models don't fit in memory
+    // together. The caller must already have stopped any reply. See ChatViewModel.switchModel.
+    suspend fun switchModel(modelId: Long) {
+        val current = _chatState.value
+        if (current.instance != null && current.llmModel?.id == modelId) {
+            _chatState.update { it.copy(modelInitializingStatus = UiState(data = true)) }
+            return
+        }
+        val model = findUsableModel(modelId)
+        releaseModel()
+        if (model == null) {
             _chatState.update {
                 it.copy(
-                    instance = LlmModelInstance(engine = engine, conversation = conversation),
-                    modelInitializingStatus = UiState(data = true),
-                    sessionId = session.id,
-                    sessionTitle = session.title
+                    llmModel = null,
+                    modelInitializingStatus = UiState(error = "That model's file is missing. Choose another model.")
                 )
             }
+            return
+        }
+        loadModel(model)
+    }
+
+    private suspend fun loadModel(model: LlmModel) {
+        _chatState.update {
+            it.copy(
+                llmModel = model,
+                modelUnavailable = false,
+                modelInitializingStatus = UiState(isLoading = true)
+            )
+        }
+        val instance = try {
+            openInstance(model, historyPrompt(_chatState.value.messages))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            val index = e.message?.indexOf("=== Source Location Trace")
-            if (index == null) {
-                _chatState.update {
-                    it.copy(modelInitializingStatus = UiState(error = "Something went wrong!"))
-                }
-            } else {
-                val message = e.message?.take(index) ?: "Unknown Error"
-                _chatState.update { it.copy(modelInitializingStatus = UiState(error = message)) }
+            Log.e("ChatRepository", "loadModel: ${e.message}", e)
+            _chatState.update {
+                it.copy(
+                    llmModel = null,
+                    modelInitializingStatus = UiState(error = "Couldn't load ${model.displayName}. ${e.readableMessage()}")
+                )
             }
+            return
         }
 
+        // Non-cancellable so a loaded engine always ends up in the state, where the ViewModel's
+        // teardown can find and free it. The chat's model is saved only now, so a failed load
+        // never leaves the chat pointing at a model that doesn't work.
+        withContext(NonCancellable) {
+            val sessionId = _chatState.value.sessionId
+            val newSession = if (sessionId == null) {
+                createSession(model.id)
+            } else {
+                chatDao.updateSessionModel(sessionId, model.id)
+                null
+            }
+            totalTokensUsed = 0
+            isConversationCancelled = false
+            _chatState.update {
+                it.copy(
+                    instance = instance,
+                    modelInitializingStatus = UiState(data = true),
+                    sessionId = newSession?.id ?: it.sessionId,
+                    sessionTitle = newSession?.title ?: it.sessionTitle
+                )
+            }
+        }
     }
+
+    private suspend fun openInstance(model: LlmModel, systemPrompt: String): LlmModelInstance {
+        val engine = Engine(
+            EngineConfig(
+                modelPath = model.path,
+                backend = Backend.CPU(),
+                visionBackend = null,
+                audioBackend = null,
+                maxNumTokens = model.maxTokens
+            )
+        )
+        try {
+            engine.initialize()
+            // initialize() blocks and can't be interrupted. If the chat closed while it ran,
+            // nothing else holds this engine, so it is freed here.
+            currentCoroutineContext().ensureActive()
+            return LlmModelInstance(engine, engine.createConversation(conversationConfig(model, systemPrompt)))
+        } catch (e: Throwable) {
+            runCatching { engine.close() }
+            throw e
+        }
+    }
+
+    // Only safe once no decode is running on this model. The ViewModel waits for that first.
+    fun releaseModel() {
+        val instance = _chatState.value.instance ?: return
+        _chatState.update { it.copy(instance = null) }
+        runCatching { instance.conversation.close() }
+        runCatching { instance.engine.close() }
+    }
+
+    private fun conversationConfig(model: LlmModel, systemPrompt: String) = ConversationConfig(
+        samplerConfig = SamplerConfig(
+            temperature = model.temperature,
+            topK = model.topK,
+            topP = model.topP
+        ),
+        systemInstruction = Contents.of(systemPrompt)
+    )
+
+    // The model starts without the chat's context, so the last exchange goes in the system prompt.
+    private fun historyPrompt(messages: List<ChatMessage>): String {
+        val history = StringBuilder(getSystemPrompt())
+        if (messages.isNotEmpty()) {
+            history.append("\n\nPrevious Chat History:\n")
+            messages.takeLast(MIN_MESSAGES_TO_KEEP).forEach { msg ->
+                val role = if (msg.type == ChatType.CHAT) "User" else "Model"
+                history.append("$role: ${msg.message}\n")
+            }
+        }
+        return history.toString()
+    }
+
+    private fun ChatMessageEntity.toChatMessage() = ChatMessage(
+        id = id,
+        message = content,
+        type = if (sender == "USER") ChatType.CHAT else ChatType.ASSISTANT,
+        timestamp = timestamp,
+        statistics = ChatStatistics(
+            timeToFirstToken = timeToFirstToken,
+            prefillSpeed = prefillSpeed,
+            decodeSpeed = decodeSpeed,
+            totalLatency = totalLatency,
+            tokenUsed = tokenUsed
+        )
+    )
+
+    // LiteRT appends a native stack trace to its messages.
+    private fun Exception.readableMessage(): String =
+        message?.substringBefore("=== Source Location Trace")?.trim()?.takeIf { it.isNotEmpty() }
+            ?: "Unknown error"
 
     private suspend fun createSession(modelId: Long): ChatSession {
         val session = ChatSession(
@@ -136,16 +257,7 @@ class ChatRepository @Inject constructor(
 
         try {
             instance.conversation.close()
-            val conversation = instance.engine.createConversation(
-                ConversationConfig(
-                    samplerConfig = SamplerConfig(
-                        temperature = llmModel.temperature,
-                        topK = llmModel.topK,
-                        topP = llmModel.topP
-                    ),
-                    systemInstruction = Contents.of(getSystemPrompt())
-                )
-            )
+            val conversation = instance.engine.createConversation(conversationConfig(llmModel, getSystemPrompt()))
             val session = createSession(llmModel.id)
             totalTokensUsed = 0
             isConversationCancelled = false
@@ -164,114 +276,6 @@ class ChatRepository @Inject constructor(
             }
         }
     }
-
-    //for old chats
-    suspend fun loadSession(sessionId: String,modelId: Long? = null) {
-        _chatState.update { it.copy(modelInitializingStatus = UiState(isLoading = true)) }
-
-        modelId?.let { chatDao.updateSessionModel(sessionId,it) }
-
-        val session = chatDao.getSessionById(sessionId)
-        if (session == null) {
-            _chatState.update { it.copy(modelInitializingStatus = UiState(error = "Session not found")) }
-            return
-        }
-
-        val llmModel = try {
-            llmModelDao.getLlmModelById(session.modelId)
-        } catch (_: Exception) {
-            null
-        }
-
-        if (llmModel == null) {
-            _chatState.update { it.copy(modelInitializingStatus = UiState(error = "Model not found")) }
-            return
-        } else {
-            _chatState.update { it.copy(llmModel = llmModel) }
-        }
-
-        // Initialize engine and conversation
-        val engineConfig = EngineConfig(
-            modelPath = llmModel.path,
-            backend = Backend.CPU(),
-            visionBackend = null,
-            audioBackend = null,
-            maxNumTokens = llmModel.maxTokens
-        )
-
-        try {
-            val engine = Engine(engineConfig = engineConfig)
-            engine.initialize()
-
-            // Load existing messages
-            val messagesEntity = chatDao.getMessagesForSession(sessionId)
-            val messages = messagesEntity.map { entity ->
-                ChatMessage(
-                    id = entity.id,
-                    message = entity.content,
-                    type = if (entity.sender == "USER") ChatType.CHAT else ChatType.ASSISTANT,
-                    timestamp = entity.timestamp,
-                    statistics = ChatStatistics(
-                        timeToFirstToken = entity.timeToFirstToken,
-                        prefillSpeed = entity.prefillSpeed,
-                        decodeSpeed = entity.decodeSpeed,
-                        totalLatency = entity.totalLatency,
-                        tokenUsed = entity.tokenUsed
-                    )
-                )
-            }
-
-            // Construct history for system prompt
-            val historyBuilder = StringBuilder(getSystemPrompt())
-            if (messages.isNotEmpty()) {
-                historyBuilder.append("\n\nPrevious Chat History:\n")
-                (if (messages.size > 2) messages.takeLast(2) else messages).forEach { msg ->
-                    val role = if (msg.type == ChatType.CHAT) "User" else "Model"
-                    historyBuilder.append("$role: ${msg.message}\n")
-                }
-            }
-            Log.d("ChatRepository", "History: $historyBuilder")
-
-            val conversation = engine.createConversation(
-                ConversationConfig(
-                    samplerConfig = SamplerConfig(
-                        temperature = llmModel.temperature,
-                        topK = llmModel.topK,
-                        topP = llmModel.topP
-                    ),
-                    systemInstruction = Contents.of(historyBuilder.toString())
-                )
-            )
-
-            _chatState.update {
-                it.copy(
-                    instance = LlmModelInstance(engine = engine, conversation = conversation),
-                    modelInitializingStatus = UiState(data = true),
-                    sessionId = sessionId,
-                    sessionTitle = session.title,
-                    messages = messages
-                )
-            }
-
-        } catch (e: Exception) {
-            val index = e.message?.indexOf("=== Source Location Trace")
-            if (index == null) {
-                _chatState.update {
-                    it.copy(
-                        modelInitializingStatus = UiState(error = "Something went wrong! ${e.message}")
-                    )
-                }
-            } else {
-                val message = e.message?.take(index) ?: "Unknown Error"
-                _chatState.update {
-                    it.copy(
-                        modelInitializingStatus = UiState(error = message)
-                    )
-                }
-            }
-        }
-    }
-
 
     @OptIn(ExperimentalApi::class)
     suspend fun sendMessage(message: String) {
@@ -468,48 +472,23 @@ class ChatRepository @Inject constructor(
      */
     private fun reduceContextAndReinitialize(instance: LlmModelInstance) {
         val llmModel = _chatState.value.llmModel ?: return
-        val currentMessages = _chatState.value.messages.toMutableList()
+        val currentMessages = _chatState.value.messages
 
         try {
-            // Keep only recent messages (at least MIN_MESSAGES_TO_KEEP message pairs)
-            val messagesToKeep = if (currentMessages.size > MIN_MESSAGES_TO_KEEP) {
-                currentMessages.takeLast(MIN_MESSAGES_TO_KEEP)
-            } else {
-                currentMessages
-            }
-
-            Log.d("ChatRepository", "Reducing context: Keeping ${messagesToKeep.size} messages out of ${currentMessages.size}")
+            Log.d("ChatRepository", "Reducing context: keeping the last $MIN_MESSAGES_TO_KEEP of ${currentMessages.size} messages")
 
             // Close old conversation
             instance.conversation.close()
 
-            // Build new system prompt with reduced history
-            val historyBuilder = StringBuilder(getSystemPrompt())
-            if (messagesToKeep.isNotEmpty()) {
-                historyBuilder.append("\n\nPrevious Chat History:\n")
-                messagesToKeep.forEach { msg ->
-                    val role = if (msg.type == ChatType.CHAT) "User" else "Model"
-                    historyBuilder.append("$role: ${msg.message}\n")
-                }
-            }
-
             // Create new conversation with reduced context
             val conversation = instance.engine.createConversation(
-                ConversationConfig(
-                    samplerConfig = SamplerConfig(
-                        temperature = llmModel.temperature,
-                        topK = llmModel.topK,
-                        topP = llmModel.topP
-                    ),
-                    systemInstruction = Contents.of(historyBuilder.toString())
-                )
+                conversationConfig(llmModel, historyPrompt(currentMessages))
             )
 
             totalTokensUsed = 0
             _chatState.update {
                 it.copy(instance = it.instance?.copy(conversation = conversation))
             }
-            Log.d("ChatRepository", "Context reinitialized with ${messagesToKeep.size} messages")
         } catch (e: Exception) {
             Log.e("ChatRepository", "Error reducing context: ${e.message}", e)
         }

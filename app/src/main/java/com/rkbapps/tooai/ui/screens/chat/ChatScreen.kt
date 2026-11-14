@@ -34,6 +34,8 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
@@ -79,6 +81,7 @@ import com.halilibo.richtext.commonmark.Markdown
 import com.halilibo.richtext.ui.material3.RichText
 import com.rkbapps.tooai.R
 import com.rkbapps.tooai.db.entity.LlmModel
+import com.rkbapps.tooai.navigation.NavigationEntry
 import com.rkbapps.tooai.ui.theme.SurfaceStatusBar
 import com.rkbapps.tooai.ui.theme.ToolShapes
 import com.rkbapps.tooai.ui.theme.toolPalette
@@ -111,6 +114,11 @@ fun ChatScreen(
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val modelName = state.llmModel?.displayName
+    val isLoadingModel = state.modelInitializingStatus.isLoading
+    val isModelReady = state.instance != null
+    // Switching is only offered while nothing is loading or generating. A load can't be
+    // interrupted, and a model can't be freed under a running reply.
+    val canSwitchModel = !isLoadingModel && !state.isChatRunning && llmModels.isNotEmpty()
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -119,17 +127,20 @@ fun ChatScreen(
                 title = state.sessionTitle ?: "Chat",
                 scrollBehavior = scrollBehavior,
                 onNavigationIconClick = { backStack.removeLastOrNull() },
-                modelChip = modelName?.let { name ->
-                    {
-                        ModelChip(
-                            name = name,
-                            isReady = state.instance != null,
-                            enabled = !state.isChatRunning,
-                            onClick = { showModelSheet = true }
-                        )
-                    }
+                modelChip = {
+                    ModelChip(
+                        label = when {
+                            isLoadingModel -> "Loading${modelName?.let { " $it" }.orEmpty()}…"
+                            modelName == null -> "Choose model"
+                            else -> "$modelName · CPU"
+                        },
+                        isReady = isModelReady,
+                        enabled = canSwitchModel,
+                        onClick = { showModelSheet = true }
+                    )
                 },
-                newChatEnabled = !state.isChatRunning && state.messages.isNotEmpty(),
+                newChatEnabled = isModelReady && !isLoadingModel && !state.isChatRunning &&
+                        state.messages.isNotEmpty(),
                 onNewChat = viewModel::startNewChat
             )
         },
@@ -138,7 +149,8 @@ fun ChatScreen(
                 messageText = messageText,
                 onMessageChange = { messageText = it },
                 placeholder = modelName?.let { "Message $it" } ?: "Message",
-                isLoadingModel = state.modelInitializingStatus.isLoading && state.instance == null,
+                isLoadingModel = isLoadingModel,
+                isModelReady = isModelReady,
                 isGenerating = state.isChatRunning,
                 selectedPrompt = state.currentPromptType,
                 onClearPrompt = { viewModel.selectAPredefinePrompt(null) },
@@ -147,7 +159,26 @@ fun ChatScreen(
                     viewModel.sendMessage(messageText)
                     messageText = ""
                 },
-                onStop = viewModel::stopGeneration
+                onStop = viewModel::stopGeneration,
+                notice = if (!isLoadingModel && !isModelReady) {
+                    {
+                        ModelNotice(
+                            message = state.modelInitializingStatus.error
+                                ?: if (state.modelUnavailable) {
+                                    "This chat's model is no longer on this device."
+                                } else {
+                                    "No model is loaded."
+                                },
+                            hasModels = llmModels.isNotEmpty(),
+                            onChooseModel = { showModelSheet = true },
+                            onImportModel = {
+                                backStack.add(NavigationEntry.ChatAndModelManagement(initialPage = MODELS_PAGE))
+                            }
+                        )
+                    }
+                } else {
+                    null
+                }
             )
         },
         containerColor = MaterialTheme.colorScheme.surface
@@ -161,15 +192,10 @@ fun ChatScreen(
                 selectedModel = state.llmModel,
                 onSheetDismiss = { showModelSheet = false  },
             ){model ->
-                state.sessionId?.let { sessionId ->
-                    viewModel.loadSession(
-                        sessionId = sessionId,
-                        modelId = model.id
-                    )
-                    scope.launch {
-                        sheetState.hide()
-                        showModelSheet = false
-                    }
+                viewModel.switchModel(model.id)
+                scope.launch {
+                    sheetState.hide()
+                    showModelSheet = false
                 }
             }
         }
@@ -196,15 +222,14 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            if (state.modelInitializingStatus.isLoading && state.messages.isNotEmpty()) {
+            if (isLoadingModel && state.messages.isNotEmpty()) {
                 LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
 
             if (state.messages.isEmpty()) {
                 ChatEmptyState(
                     modifier = Modifier.weight(1f),
-                    isLoading = state.modelInitializingStatus.isLoading,
-                    error = state.modelInitializingStatus.error,
+                    isLoading = isLoadingModel,
                     modelName = modelName
                 )
             } else {
@@ -234,6 +259,9 @@ fun ChatScreen(
     }
 
 }
+
+// Library's tabs: 0 is Chats, 1 is Models.
+private const val MODELS_PAGE = 1
 
 // A chat needs the vertical space, so it keeps a single-row bar rather than the large
 // collapsing one the other migrated screens use.
@@ -304,7 +332,7 @@ private fun ChatTopBar(
 
 @Composable
 private fun ModelChip(
-    name: String,
+    label: String,
     isReady: Boolean,
     enabled: Boolean,
     onClick: () -> Unit
@@ -336,7 +364,7 @@ private fun ModelChip(
                     )
             )
             Text(
-                text = "$name · CPU",
+                text = label,
                 modifier = Modifier.weight(1f, fill = false),
                 style = MaterialTheme.typography.labelMediumEmphasized,
                 maxLines = 1,
@@ -356,7 +384,6 @@ private fun ModelChip(
 private fun ChatEmptyState(
     modifier: Modifier = Modifier,
     isLoading: Boolean,
-    error: String?,
     modelName: String?
 ) {
     Column(
@@ -366,13 +393,8 @@ private fun ChatEmptyState(
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Model problems are shown above the composer, so they stay visible with or without history.
         when {
-            error != null -> Text(
-                text = error,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
-                textAlign = TextAlign.Center
-            )
             isLoading -> {
                 ContainedLoadingIndicator(modifier = Modifier.size(64.dp))
                 Text(
@@ -421,12 +443,14 @@ private fun ChatComposer(
     onMessageChange: (String) -> Unit,
     placeholder: String,
     isLoadingModel: Boolean,
+    isModelReady: Boolean,
     isGenerating: Boolean,
     selectedPrompt: Prompts?,
     onClearPrompt: () -> Unit,
     onShowPrompts: () -> Unit,
     onSend: () -> Unit,
-    onStop: () -> Unit
+    onStop: () -> Unit,
+    notice: (@Composable () -> Unit)?
 ) {
     val fieldColor = MaterialTheme.colorScheme.surfaceContainerHigh
 
@@ -437,6 +461,7 @@ private fun ChatComposer(
                 .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            notice?.invoke()
             selectedPrompt?.let { prompt ->
                 PromptChip(prompt = prompt, showClose = true, onClick = onClearPrompt)
             }
@@ -472,7 +497,8 @@ private fun ChatComposer(
                         disabledIndicatorColor = Color.Transparent
                     )
                 )
-                val canSend = !isLoadingModel && !isGenerating && messageText.isNotBlank()
+                // Without a loaded model the message would be cleared and never sent.
+                val canSend = isModelReady && !isLoadingModel && !isGenerating && messageText.isNotBlank()
                 FilledIconButton(
                     onClick = if (isGenerating) onStop else onSend,
                     enabled = isGenerating || canSend,
@@ -499,6 +525,40 @@ private fun ChatComposer(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
+        }
+    }
+}
+
+// Shown above the composer while the chat has no usable model.
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ModelNotice(
+    message: String,
+    hasModels: Boolean,
+    onChooseModel: () -> Unit,
+    onImportModel: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = message,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            FilledTonalButton(
+                onClick = if (hasModels) onChooseModel else onImportModel,
+                shapes = ButtonDefaults.shapes()
+            ) {
+                Text(if (hasModels) "Choose model" else "Import a model")
+            }
         }
     }
 }

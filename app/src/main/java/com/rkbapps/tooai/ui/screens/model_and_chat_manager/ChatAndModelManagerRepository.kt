@@ -117,6 +117,8 @@ class ChatAndModelManagerRepository @Inject constructor(
         }
     }
 
+    suspend fun countChatsUsingModel(modelId: Long): Int = chatDao.countSessionsForModel(modelId)
+
     suspend fun deleteModel(model: LlmModel){
         try {
             val path = model.path

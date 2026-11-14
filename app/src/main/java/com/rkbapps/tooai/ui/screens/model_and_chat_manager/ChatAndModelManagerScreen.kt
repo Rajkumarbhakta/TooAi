@@ -66,6 +66,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -264,6 +265,10 @@ fun ChatAndModelManagerScreen(
 
             // Delete Model Dialog
             deletableModel?.let { model ->
+                // Those chats keep their history and ask for another model when opened.
+                val chatCount by produceState(0, model.id) {
+                    value = viewModel.countChatsUsingModel(model.id)
+                }
                 AlertDialog(
                     onDismissRequest = { deletableModel = null },
                     icon = {
@@ -274,7 +279,17 @@ fun ChatAndModelManagerScreen(
                         )
                     },
                     title = { Text("Delete ${model.displayName}?") },
-                    text = { Text("Are you sure you want to delete ${model.displayName}? This model file will be permanently removed.") },
+                    text = {
+                        Text(
+                            buildString {
+                                append("Are you sure you want to delete ${model.displayName}? This model file will be permanently removed.")
+                                if (chatCount > 0) {
+                                    val chats = if (chatCount == 1) "1 chat uses" else "$chatCount chats use"
+                                    append("\n\n$chats this model. They keep their messages and will ask you to choose another model.")
+                                }
+                            }
+                        )
+                    },
                     confirmButton = {
                         Button(
                             onClick = {

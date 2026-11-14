@@ -197,6 +197,19 @@ ui/screens/sticker/StickerEditorScreen.kt     canvas, tools, text sheet
 - Cancelling the coroutine does **not** stop the native LiteRT decode. You must also call
   `conversation.cancelProcess()` (`repository.cancel`). See `cancelGeneration()`.
 
+**Chat models**
+- A chat's model can be deleted, or its file can vanish while the row stays. `loadSession` loads
+  the history first and marks the model `modelUnavailable` instead of failing, so the chat still
+  opens and offers Choose model. Don't move message loading back behind the engine.
+- All model work in `ChatViewModel` goes through `runModelTask`, one task at a time.
+  `engine.initialize()` blocks and can't be interrupted, so two loads side by side meant two
+  models in memory. A switch stops the reply, joins it, releases the old engine, then loads.
+- The session's `modelId` is written only after a load succeeds, never before.
+- `onCleared` must not close the engine inline: it waits (off `viewModelScope`) for the load and
+  the decode to unwind. A load that outlives the screen frees its own engine in `openInstance`.
+- Verified on device: switching frees the old model (its file leaves `/proc/<pid>/maps`), and
+  leaving mid-load or mid-reply returns to ~150 MB PSS with no crash.
+
 **Compose**
 - An infinite `rememberInfiniteTransition` left running in an idle state burns a full CPU core.
   The old `TypingDots` was shown in `Stage.Idle` and did exactly that; its replacement,
