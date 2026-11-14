@@ -3,7 +3,7 @@
 Offline-first Android app. On-device LLM chat plus ML Kit vision tools (doc scan, QR, text
 recognition, subject segmentation). Single module `:app`, package `com.rkbapps.tooai`.
 
-Kotlin 2.3.10 · AGP 9.3.1 · Compose BOM 2026.09.00 + Material3 1.5.0-beta02 · minSdk 26 / target 37 · Hilt · Room ·
+Kotlin 2.4.21 · AGP 9.3.1 · Compose BOM 2026.09.00 + Material3 1.5.0-rc01 · minSdk 26 / target 37 · Hilt · Room ·
 Navigation 3 · LiteRT-LM.
 
 ---
