@@ -90,7 +90,6 @@ import com.rkbapps.tooai.utils.copyText
 import com.rkbapps.tooai.utils.dateGroupLabel
 import com.rkbapps.tooai.utils.toDateTimeString
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun BarcodeScanScreen(
     backStack: SnapshotStateList<Any>,

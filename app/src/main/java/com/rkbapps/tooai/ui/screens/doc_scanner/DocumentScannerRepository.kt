@@ -30,7 +30,6 @@ import androidx.core.net.toUri
 class DocumentScannerRepository @Inject constructor(
     private val documentScanDao: DocumentScansDao,
 ) {
-
     private val options = GmsDocumentScannerOptions.Builder()
         .setResultFormats(
             GmsDocumentScannerOptions.RESULT_FORMAT_PDF,
@@ -38,6 +37,7 @@ class DocumentScannerRepository @Inject constructor(
         )
         .setGalleryImportAllowed(true)
         .setScannerMode(ScanModes.FULL_MODE)
+
     private val client = GmsDocumentScanning.getClient(options.build())
 
 

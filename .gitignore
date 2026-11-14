@@ -21,3 +21,4 @@ gradle/gradle-daemon-jvm.properties
 *.keystore
 *.jks
 /playstore
+/chats/

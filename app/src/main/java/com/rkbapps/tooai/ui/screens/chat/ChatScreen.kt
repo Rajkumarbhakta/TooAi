@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -594,8 +595,10 @@ private fun AssistantMessageItem(
             }
         }
 
-        RichText {
-            Markdown(content = message.message)
+        SelectionContainer {
+            RichText {
+                Markdown(content = message.message)
+            }
         }
 
         if (!isGenerating) {

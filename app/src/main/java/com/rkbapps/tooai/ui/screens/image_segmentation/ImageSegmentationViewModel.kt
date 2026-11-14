@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import androidx.core.graphics.createBitmap
 
 @HiltViewModel
 class ImageSegmentationViewModel @Inject constructor(
@@ -66,7 +67,7 @@ class ImageSegmentationViewModel @Inject constructor(
     private suspend fun withBackground(bitmap: Bitmap, background: Color?): Bitmap {
         if (background == null) return bitmap
         return withContext(Dispatchers.Default) {
-            val result = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+            val result = createBitmap(bitmap.width, bitmap.height,Bitmap.Config.ARGB_8888)
             android.graphics.Canvas(result).apply {
                 drawColor(background.toArgb())
                 drawBitmap(bitmap, 0f, 0f, null)
@@ -76,7 +77,6 @@ class ImageSegmentationViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         repository.close() // releases native SubjectSegmenter resources
     }
 }

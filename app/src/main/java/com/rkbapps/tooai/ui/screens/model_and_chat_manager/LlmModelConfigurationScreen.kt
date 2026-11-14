@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,8 +27,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -64,11 +61,10 @@ import com.rkbapps.tooai.ui.theme.pageContainerColor
 import com.rkbapps.tooai.ui.theme.rowContainerColor
 import com.rkbapps.tooai.utils.ModelConfigs
 import com.rkbapps.tooai.utils.roundTo2Decimals
-import java.util.Locale
+import androidx.compose.ui.platform.LocalLocale
 
 private val MaxTokenOptions = listOf(512, 1024, 2048, 4096)
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LlmModelConfigurationScreen(
     modifier: Modifier = Modifier,
@@ -156,7 +152,7 @@ fun LlmModelConfigurationScreen(
                         )
                         ParameterSlider(
                             title = "Temperature",
-                            valueText = String.format(Locale.getDefault(), "%.2f", llmModelUpdated.temperature),
+                            valueText = String.format(LocalLocale.current.platformLocale, "%.2f", llmModelUpdated.temperature),
                             value = llmModelUpdated.temperature.toFloat(),
                             valueRange = ModelConfigs.MIN_TEMPERATURE.toFloat()..ModelConfigs.MAX_TEMPERATURE.toFloat(),
                             enabled = !isImporting,
@@ -177,7 +173,7 @@ fun LlmModelConfigurationScreen(
                         )
                         ParameterSlider(
                             title = "Top-p",
-                            valueText = String.format(Locale.getDefault(), "%.2f", llmModelUpdated.topP),
+                            valueText = String.format(LocalLocale.current.platformLocale, "%.2f", llmModelUpdated.topP),
                             value = llmModelUpdated.topP.toFloat(),
                             valueRange = ModelConfigs.MIN_TOP_P.toFloat()..ModelConfigs.MAX_TOP_P.toFloat(),
                             enabled = !isImporting,
@@ -199,7 +195,6 @@ fun LlmModelConfigurationScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ModelFileCard(
     model: LlmModel,
@@ -273,7 +268,6 @@ private fun ModelFileCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ParameterSlider(
     title: String,
@@ -340,7 +334,6 @@ private fun ParameterSlider(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun MaxTokensSelector(
     maxTokens: Int,
@@ -358,7 +351,7 @@ private fun MaxTokensSelector(
                 style = MaterialTheme.typography.titleSmall
             )
             Text(
-                text = String.format(Locale.getDefault(), "%,d", maxTokens),
+                text = String.format(LocalLocale.current.platformLocale, "%,d", maxTokens),
                 style = MaterialTheme.typography.labelLargeEmphasized,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -386,7 +379,7 @@ private fun MaxTokensSelector(
                     contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
                     Text(
-                        text = String.format(Locale.getDefault(), "%,d", option),
+                        text = String.format(LocalLocale.current.platformLocale, "%,d", option),
                         style = MaterialTheme.typography.labelLarge,
                         maxLines = 1
                     )
@@ -396,7 +389,6 @@ private fun MaxTokensSelector(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ConfigurationActions(
     confirmButtonText: String,

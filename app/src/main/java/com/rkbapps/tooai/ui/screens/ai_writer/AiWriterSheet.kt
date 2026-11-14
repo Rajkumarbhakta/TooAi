@@ -1160,8 +1160,7 @@ private fun NoModelContent(onImportModel: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Box(
-            modifier = Modifier
-                .size(72.dp)
+            modifier = Modifier.size(72.dp)
                 .background(accent.container, ToolShapes.AiChat.toShape()),
             contentAlignment = Alignment.Center
         ) {

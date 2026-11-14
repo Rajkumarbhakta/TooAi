@@ -86,7 +86,6 @@ private const val DISCLAIMER =
             "It runs AI models locally, requiring decent processing power. " +
             "AI results may be inaccurate. The developer is not liable for device issues, incorrect AI responses, or any damages."
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     backStack: SnapshotStateList<Any>,
@@ -427,7 +426,6 @@ private fun SwitchRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ThemeRow(
     shape: Shape,
@@ -485,7 +483,6 @@ private fun ThemeRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ThemeOption(
     label: String,

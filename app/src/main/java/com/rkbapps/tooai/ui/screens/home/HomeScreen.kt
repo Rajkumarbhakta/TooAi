@@ -274,11 +274,6 @@ private fun VisionToolsHeader() {
             text = "Vision tools",
             style = MaterialTheme.typography.titleLargeEmphasized
         )
-        Text(
-            text = "Powered by ML Kit",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 

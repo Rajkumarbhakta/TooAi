@@ -49,7 +49,6 @@ class RecognizedTextViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        super.onCleared()
         repository.close() // releases the native ML Kit TextRecognizer
     }
 }

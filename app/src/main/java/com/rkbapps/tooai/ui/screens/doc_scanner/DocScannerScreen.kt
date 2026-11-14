@@ -122,7 +122,6 @@ private data class DocumentInfo(
     val thumbnail: ImageBitmap
 )
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DocScannerScreen(
     backStack: SnapshotStateList<Any>,
@@ -593,7 +592,6 @@ private fun DocumentItem(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ScanPreview(
     scan: GmsDocumentScanningResult,
