@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,6 +40,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
@@ -46,7 +48,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
@@ -58,10 +62,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -72,7 +78,6 @@ import com.halilibo.richtext.commonmark.Markdown
 import com.halilibo.richtext.ui.material3.RichText
 import com.rkbapps.tooai.R
 import com.rkbapps.tooai.db.entity.LlmModel
-import com.rkbapps.tooai.ui.composabels.LargeCollapsingTopBar
 import com.rkbapps.tooai.ui.theme.SurfaceStatusBar
 import com.rkbapps.tooai.ui.theme.ToolShapes
 import com.rkbapps.tooai.ui.theme.toolPalette
@@ -103,18 +108,17 @@ fun ChatScreen(
     var showPromptSheet by remember { mutableStateOf(false) }
     val promptSheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val modelName = state.llmModel?.displayName
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeCollapsingTopBar(
+            ChatTopBar(
                 title = state.sessionTitle ?: "Chat",
                 scrollBehavior = scrollBehavior,
                 onNavigationIconClick = { backStack.removeLastOrNull() },
-                containerColor = MaterialTheme.colorScheme.surface,
-                subtitle = modelName?.let { name ->
+                modelChip = modelName?.let { name ->
                     {
                         ModelChip(
                             name = name,
@@ -124,20 +128,8 @@ fun ChatScreen(
                         )
                     }
                 },
-                actions = {
-                    FilledTonalIconButton(
-                        onClick = viewModel::startNewChat,
-                        enabled = !state.isChatRunning && state.messages.isNotEmpty(),
-                        modifier = Modifier.size(48.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    ) {
-                        Icon(painter = painterResource(R.drawable.add), "New chat")
-                    }
-                }
+                newChatEnabled = !state.isChatRunning && state.messages.isNotEmpty(),
+                onNewChat = viewModel::startNewChat
             )
         },
         bottomBar = {
@@ -240,6 +232,73 @@ fun ChatScreen(
         }
     }
 
+}
+
+// A chat needs the vertical space, so it keeps a single-row bar rather than the large
+// collapsing one the other migrated screens use.
+@Composable
+private fun ChatTopBar(
+    title: String,
+    scrollBehavior: TopAppBarScrollBehavior,
+    onNavigationIconClick: () -> Unit,
+    modelChip: (@Composable () -> Unit)?,
+    newChatEnabled: Boolean,
+    onNewChat: () -> Unit
+) {
+    val titleContent: @Composable () -> Unit = {
+        Text(
+            text = title,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+    val navigationIcon: @Composable () -> Unit = {
+        IconButton(onClick = onNavigationIconClick) {
+            Icon(
+                painter = painterResource(R.drawable.arrow_back),
+                contentDescription = "navigation up"
+            )
+        }
+    }
+    val actions: @Composable RowScope.() -> Unit = {
+        FilledTonalIconButton(
+            onClick = onNewChat,
+            enabled = newChatEnabled,
+            modifier = Modifier.size(48.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        ) {
+            Icon(painter = painterResource(R.drawable.add), "New chat")
+        }
+    }
+    val colors = TopAppBarDefaults.topAppBarColors(
+        containerColor = MaterialTheme.colorScheme.surface,
+        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+    )
+
+    if (modelChip != null) {
+        TopAppBar(
+            title = titleContent,
+            subtitle = modelChip,
+            navigationIcon = navigationIcon,
+            actions = actions,
+            expandedHeight = 80.dp,
+            colors = colors,
+            scrollBehavior = scrollBehavior
+        )
+    } else {
+        TopAppBar(
+            title = titleContent,
+            navigationIcon = navigationIcon,
+            actions = actions,
+            colors = colors,
+            scrollBehavior = scrollBehavior
+        )
+    }
 }
 
 @Composable
@@ -518,11 +577,12 @@ private fun AssistantMessageItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.sparkles),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
+                Box(
+                    modifier = Modifier.size(24.dp)
+                        .background(
+                           color = MaterialTheme.colorScheme.primary,
+                           shape = ToolShapes.AiChat.toShape()
+                        ) ,
                 )
                 Text(
                     text = it,

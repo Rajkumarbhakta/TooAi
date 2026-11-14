@@ -185,7 +185,8 @@ utils/PredefinePrompts.kt               every prompt string + type/sub-type enum
 **Status bar**
 - Icons are chosen for the `primary` top bars. A migrated screen with a surface header must call
   `SurfaceStatusBar()`. It is counted, because two screens overlap during a transition.
-- Every migrated screen except Home uses `LargeCollapsingTopBar`, added as each page is migrated.
+- Every migrated screen except Home and Chat uses `LargeCollapsingTopBar`. Chat uses a single-row
+  `TopAppBar` (`ChatTopBar` in `ChatScreen.kt`) because a chat needs the vertical space.
 
 **Misc**
 - XML comments cannot contain `--`; it fails the manifest merger with an opaque parse error.
