@@ -13,6 +13,7 @@ import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.SamplerConfig
 import com.rkbapps.tooai.db.dao.LlmModelDao
 import com.rkbapps.tooai.db.entity.LlmModel
+import com.rkbapps.tooai.utils.chatTemplateOverride
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -68,6 +69,7 @@ class AiWriterRepository @Inject constructor(
      */
     suspend fun newConversation(
         engine: Engine,
+        model: LlmModel,
         samplerConfig: SamplerConfig
     ): Result<Conversation> =
         withContext(Dispatchers.IO) {
@@ -76,7 +78,8 @@ class AiWriterRepository @Inject constructor(
                     engine.createConversation(
                         ConversationConfig(
                             samplerConfig = samplerConfig,
-                            systemInstruction = Contents.of(SYSTEM_PROMPT)
+                            systemInstruction = Contents.of(SYSTEM_PROMPT),
+                            chatTemplate = chatTemplateOverride(model.path)
                         )
                     )
                 )

@@ -15,6 +15,7 @@ import com.rkbapps.tooai.db.dao.LlmModelDao
 import com.rkbapps.tooai.db.entity.ChatSession
 import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.utils.Prompts
+import com.rkbapps.tooai.utils.chatTemplateOverride
 import com.rkbapps.tooai.utils.UiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -200,7 +201,9 @@ class ChatRepository @Inject constructor(
             topK = model.topK,
             topP = model.topP
         ),
-        systemInstruction = Contents.of(systemPrompt)
+        systemInstruction = Contents.of(systemPrompt),
+        // Null keeps the model's own template. See ChatTemplates.kt.
+        chatTemplate = chatTemplateOverride(model.path)
     )
 
     // The model starts without the chat's context, so the last exchange goes in the system prompt.

@@ -210,6 +210,15 @@ ui/screens/sticker/StickerEditorScreen.kt     canvas, tools, text sheet
 - Verified on device: switching frees the old model (its file leaves `/proc/<pid>/maps`), and
   leaving mid-load or mid-reply returns to ~150 MB PSS with no crash.
 
+**Chat templates**
+- Since LiteRT-LM 0.17, message content reaches a model's Jinja template as a list of parts. Qwen2.5's
+  ChatML template joins it with `+` and fails every message with "Failed to apply template ...
+  string and sequence". `utils/ChatTemplates.kt` spots that pattern in the model file's header and
+  passes the app's own ChatML template through `ConversationConfig.chatTemplate`. Every place that
+  builds a `ConversationConfig` (chat and AI Writer) must pass `chatTemplateOverride(model.path)`.
+- LiteRT-LM's template engine is a Jinja subset. Keep the override to `is string`, `for` and
+  `item['key']`, which is what Gemma's working template uses.
+
 **Compose**
 - An infinite `rememberInfiniteTransition` left running in an idle state burns a full CPU core.
   The old `TypingDots` was shown in `Stage.Idle` and did exactly that; its replacement,
