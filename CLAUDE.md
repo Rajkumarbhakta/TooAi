@@ -149,6 +149,34 @@ utils/PredefinePrompts.kt               every prompt string + type/sub-type enum
 
 ---
 
+## Sticker editor
+
+Its own route, `NavigationEntry.StickerEditor(sourcePath)`, opened from the Background Remover's
+"Make sticker" card. A bitmap can't go in a route, so `StickerRepository.writeSource` trims the
+cut-out, caps it at 1024 px and writes a PNG to `cache/sticker_source/`; the editor loads that path.
+
+- **One document, one renderer.** `StickerDocument` is immutable and lives in 512 × 512 sticker
+  space. `drawSticker()` in `StickerMaker.kt` draws it for both the on-screen canvas and the
+  exported WebP, so what is saved is what was shown. Don't add a second drawing path for preview.
+- **Undo** is a stack of earlier documents. Change the document only through `edit()` (or, for a
+  drag, the one `record()` at the start of the gesture) or the change can't be undone.
+- **Gestures.** `selectedId == null` means gestures move the cut-out; otherwise they move that text
+  item. The canvas consumes drags, so the page behind can't be scrolled from it. That is why
+  opening a tool collapses the top bar: its options have to fit without scrolling.
+- **Emoji are text items** with `isEmoji = true` (no colour, font or edge), typed from the keyboard.
+- **Export** is lossy WebP stepped down to fit 100 KB. Copy puts a `content://` URI on the
+  clipboard; there is no sticker clipboard type, and no WhatsApp sticker-pack integration.
+
+```
+ui/screens/sticker/StickerDocument.kt         layers, transforms, pure maths (unit-tested)
+ui/screens/sticker/StickerMaker.kt            trim, render, hit-testing, WebP encode
+ui/screens/sticker/StickerEditorViewModel.kt  selection, gestures, undo, export
+ui/screens/sticker/StickerRepository.kt       source file, sticker cache, save to Pictures/TooAi/Stickers
+ui/screens/sticker/StickerEditorScreen.kt     canvas, tools, text sheet
+```
+
+---
+
 ## Gotchas (learned the hard way — don't rediscover these)
 
 **PROCESS_TEXT**

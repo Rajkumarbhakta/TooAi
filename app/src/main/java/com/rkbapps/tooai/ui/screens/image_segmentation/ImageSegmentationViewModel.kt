@@ -10,8 +10,10 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.rkbapps.tooai.ui.screens.sticker.StickerRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -20,15 +22,23 @@ import androidx.core.graphics.createBitmap
 @HiltViewModel
 class ImageSegmentationViewModel @Inject constructor(
     private val repository: ImageSegmentationRepository,
-    @ApplicationContext context: Context
+    private val stickerRepository: StickerRepository,
+    @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
     val segmentationState = repository.segmentationState
     val imageSavingStatus = repository.imageSavingStatus
     val recentCutouts = repository.recentCutouts
 
+    private var stickerJob: Job? = null
+
     init {
-        viewModelScope.launch { repository.loadRecentCutouts(context) }
+        refreshRecentCutouts()
+    }
+
+    // Also called when the pick page comes back, since the sticker editor saves there too.
+    fun refreshRecentCutouts() {
+        viewModelScope.launch { repository.loadRecentCutouts(appContext) }
     }
 
     fun segment(context: Context, uri: Uri) {
@@ -61,6 +71,19 @@ class ImageSegmentationViewModel @Inject constructor(
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             context.startActivity(Intent.createChooser(intent, "Share cut-out"))
+        }
+    }
+
+    // Hands the cut-out to the sticker editor as a file and reports its path.
+    fun prepareSticker(context: Context, cutout: Bitmap, onReady: (String) -> Unit) {
+        if (stickerJob?.isActive == true) return
+        stickerJob = viewModelScope.launch {
+            val path = stickerRepository.writeSource(context, cutout)
+            if (path == null) {
+                Toast.makeText(context, "Unable to make a sticker from this cut-out.", Toast.LENGTH_SHORT).show()
+            } else {
+                onReady(path)
+            }
         }
     }
 

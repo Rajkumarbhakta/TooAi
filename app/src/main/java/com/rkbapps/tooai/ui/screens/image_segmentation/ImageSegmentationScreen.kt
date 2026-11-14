@@ -69,14 +69,12 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
@@ -87,7 +85,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -97,7 +94,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.rkbapps.tooai.BuildConfig
 import com.rkbapps.tooai.R
+import com.rkbapps.tooai.navigation.NavigationEntry
 import com.rkbapps.tooai.ui.composabels.LargeCollapsingTopBar
+import com.rkbapps.tooai.ui.composabels.checkerboard
+import com.rkbapps.tooai.ui.composabels.drawCheckerboard
 import com.rkbapps.tooai.ui.theme.LightToolPalette
 import com.rkbapps.tooai.ui.theme.SurfaceStatusBar
 import com.rkbapps.tooai.ui.theme.ToolShapes
@@ -188,10 +188,18 @@ fun ImageSegmentationScreen(
             isSaving = imageSavingStatus.isLoading,
             onClose = viewModel::resetState,
             onSave = { bitmap, background -> viewModel.saveToGallery(context, bitmap, background) },
-            onShare = { bitmap, background -> viewModel.share(context, bitmap, background) }
+            onShare = { bitmap, background -> viewModel.share(context, bitmap, background) },
+            onMakeSticker = { cutout ->
+                viewModel.prepareSticker(context, cutout) { path ->
+                    backStack.add(NavigationEntry.StickerEditor(path))
+                }
+            }
         )
         return
     }
+
+    // The sticker editor saves under Pictures/TooAi too, so the strip is reloaded on the way back.
+    LaunchedEffect(Unit) { viewModel.refreshRecentCutouts() }
 
     PickImage(
         recentCutouts = recentCutouts,
@@ -383,7 +391,8 @@ private fun CutoutResult(
     isSaving: Boolean,
     onClose: () -> Unit,
     onSave: (Bitmap, Color?) -> Unit,
-    onShare: (Bitmap, Color?) -> Unit
+    onShare: (Bitmap, Color?) -> Unit,
+    onMakeSticker: (Bitmap) -> Unit
 ) {
     // -1 is every subject together.
     var subjectIndex by rememberSaveable(result) { mutableIntStateOf(-1) }
@@ -392,6 +401,7 @@ private fun CutoutResult(
     val subject = result?.subjects?.getOrNull(subjectIndex)
     val cutout = subject?.bitmap ?: result?.foregroundBitmap
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val accent = MaterialTheme.toolPalette.background
 
     BackHandler(onBack = onClose)
 
@@ -480,6 +490,37 @@ private fun CutoutResult(
                         result.subjects.indices.forEach { index ->
                             SubjectChip("Subject ${index + 1}", subjectIndex == index) { subjectIndex = index }
                         }
+                    }
+                }
+
+                // Opens the sticker editor with whichever cut-out is showing.
+                Surface(
+                    onClick = { cutout?.let(onMakeSticker) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 20.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    color = accent.container,
+                    contentColor = accent.onContainer
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.sticker),
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "Make sticker", style = MaterialTheme.typography.titleMediumEmphasized)
+                            Text(
+                                text = "Add text, emoji, drawings and an outline",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Icon(painter = painterResource(R.drawable.arrow_forward), contentDescription = null)
                     }
                 }
             }
@@ -621,29 +662,6 @@ private fun Offset.round() = IntOffset(x.roundToInt(), y.roundToInt())
 
 private fun Size.round() = IntSize(width.roundToInt(), height.roundToInt())
 
-private fun DrawScope.drawCheckerboard(topLeft: Offset, area: Size, cell: Float, light: Color, dark: Color) {
-    drawRect(light, topLeft = topLeft, size = area)
-    val columns = (area.width / cell).toInt() + 1
-    val rows = (area.height / cell).toInt() + 1
-    clipRect(topLeft.x, topLeft.y, topLeft.x + area.width, topLeft.y + area.height) {
-        for (row in 0 until rows) {
-            for (column in 0 until columns) {
-                if ((row + column) % 2 == 1) {
-                    drawRect(dark, Offset(topLeft.x + column * cell, topLeft.y + row * cell), Size(cell, cell))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun Modifier.checkerboard(cell: Dp): Modifier {
-    // Theme tones, so the pattern stays quiet in dark mode instead of black and white.
-    val light = MaterialTheme.colorScheme.surfaceContainerLowest
-    val dark = MaterialTheme.colorScheme.surfaceContainerHigh
-    return drawBehind { drawCheckerboard(Offset.Zero, size, cell.toPx(), light, dark) }
-}
-
 @Composable
 private fun BackgroundSwatch(option: BackgroundOption, selected: Boolean, onClick: () -> Unit) {
     val shape = if (option.color == null) RoundedCornerShape(14.dp) else CircleShape
@@ -747,7 +765,7 @@ private fun openImage(context: Context, uri: Uri) {
     try {
         context.startActivity(
             Intent(Intent.ACTION_VIEW)
-                .setDataAndType(uri, "image/png")
+                .setDataAndType(uri, "image/*")
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         )
     } catch (e: Exception) {

@@ -29,6 +29,13 @@ sealed class NavigationEntry: NavKey, Parcelable {
     @Serializable
     data object TextRecognization: NavigationEntry()
 
+    // sourcePath is the cut-out the Background Remover wrote to the cache for the editor.
+    @Parcelize
+    @Serializable
+    data class StickerEditor(
+        val sourcePath: String
+    ): NavigationEntry()
+
     @Parcelize
     @Serializable
     data class ChatAndModelManagement(

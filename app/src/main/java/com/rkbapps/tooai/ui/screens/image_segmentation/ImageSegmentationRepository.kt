@@ -164,8 +164,9 @@ class ImageSegmentationRepository @Inject constructor() {
         _imageSavingStatus.value = UiState()
     }
 
-    // The PNGs this app saved to Pictures/TooAi, newest first. An app can list its own media
-    // without a permission from Android 10, which is also when saveImage starts writing there.
+    // The cut-outs and stickers this app saved under Pictures/TooAi, newest first. An app can list
+    // its own media without a permission from Android 10, which is also when saveImage starts
+    // writing there.
     suspend fun loadRecentCutouts(context: Context) = withContext(Dispatchers.IO) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return@withContext
         val uris = mutableListOf<Uri>()
@@ -173,8 +174,8 @@ class ImageSegmentationRepository @Inject constructor() {
             context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                 arrayOf(MediaStore.Images.Media._ID),
-                "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND ${MediaStore.Images.Media.MIME_TYPE} = ?",
-                arrayOf("Pictures/$SAVE_FOLDER%", "image/png"),
+                "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND ${MediaStore.Images.Media.MIME_TYPE} IN (?, ?)",
+                arrayOf("Pictures/$SAVE_FOLDER%", "image/png", "image/webp"),
                 "${MediaStore.Images.Media.DATE_ADDED} DESC"
             )?.use { cursor ->
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
