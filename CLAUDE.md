@@ -66,7 +66,7 @@ JetBrains Runtime every run.
 
 - **DI**: Hilt. Only one module — `di/DatabaseModule.kt` (Gson, Room `Database`, all DAOs).
   Repositories are plain `@Inject constructor`, unscoped.
-- **DB**: Room v6, `app_database`, hand-written migrations in `db/Database.kt`. Entities `QrScan`, `RecognizedText`, `DocumentScans`,
+- **DB**: Room v7, `app_database`, hand-written migrations in `db/Database.kt`. Entities `QrScan`, `RecognizedText`, `DocumentScans`,
   `LlmModel`, `ChatSession`, `ChatMessage`.
 - **Nav**: Navigation 3 (`navigation/NavManager.kt`), back stack is a process-global
   `MainActivity.backStack` snapshot list. `ChatViewModel.init` reads its route off that static —
@@ -209,6 +209,14 @@ ui/screens/sticker/StickerEditorScreen.kt     canvas, tools, text sheet
   the decode to unwind. A load that outlives the screen frees its own engine in `openInstance`.
 - Verified on device: switching frees the old model (its file leaves `/proc/<pid>/maps`), and
   leaving mid-load or mid-reply returns to ~150 MB PSS with no crash.
+
+**Chat screen**
+- A reply's label is the model that wrote it, stored per message (`chat_messages.modelName`, DB
+  v7). Read `message.modelName`, not the loaded model, or switching models relabels the history.
+  It is a name, not an id, so it survives the model being deleted.
+- The message list is reversed with keyed items. Compose keeps the visible item in place when
+  one is added, so a new message lands below the fold unless the list is sent to index 0 when
+  the count grows. A streaming reply needs nothing extra: at offset 0 the list stays pinned to it.
 
 **Chat context** (`ui/screens/chat/ChatContext.kt`)
 - The window (the model's Max tokens) is split: 30% reserved for the next reply (also set as

@@ -32,7 +32,9 @@ data class ChatMessage(
     val isResponding: Boolean = false,
     val statistics: ChatStatistics? = null,
     // A failed reply. Shown in the chat, but never handed back to the model as history.
-    val isError: Boolean = false
+    val isError: Boolean = false,
+    // The model that wrote a reply. A chat can switch models, so this is per message.
+    val modelName: String? = null
 )
 
 data class ChatStatistics(

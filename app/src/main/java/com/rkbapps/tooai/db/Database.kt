@@ -16,7 +16,7 @@ import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.db.entity.QrScan
 import com.rkbapps.tooai.db.entity.RecognizedText
 
-@Database(entities = [QrScan::class, RecognizedText::class, DocumentScans::class, LlmModel::class, ChatSession::class, ChatMessage::class], version = 6, exportSchema = false)
+@Database(entities = [QrScan::class, RecognizedText::class, DocumentScans::class, LlmModel::class, ChatSession::class, ChatMessage::class], version = 7, exportSchema = false)
 abstract class Database : RoomDatabase() {
     abstract fun qrScanDao(): QrScanDao
     abstract fun recognizedTextDao(): RecognizedTextDao
@@ -59,6 +59,22 @@ abstract class Database : RoomDatabase() {
         val MIGRATION_5_6: Migration = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `RecognizedText` ADD COLUMN `timeMillis` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `chat_messages` ADD COLUMN `modelName` TEXT")
+                // Which model wrote a reply was never recorded. The chat's current model is the
+                // best guess: right unless the chat was switched to another model part-way.
+                // Replies in a chat whose model has been deleted stay unlabelled.
+                db.execSQL(
+                    "UPDATE `chat_messages` SET `modelName` = (" +
+                            "SELECT m.`displayName` FROM `chat_sessions` s " +
+                            "JOIN `LlmModel` m ON m.`id` = s.`modelId` " +
+                            "WHERE s.`id` = `chat_messages`.`sessionId`) " +
+                            "WHERE `sender` = 'ASSISTANT'"
+                )
             }
         }
     }

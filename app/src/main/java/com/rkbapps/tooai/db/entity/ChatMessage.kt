@@ -32,5 +32,8 @@ data class ChatMessage(
     val decodeSpeed: Float? = null,
     val totalLatency: Float? = null,
     val tokenUsed: Int? = null,
-    val isError: Boolean = false
+    val isError: Boolean = false,
+    // The display name of the model that wrote a reply, as it was at the time. A name rather
+    // than an id, so the label survives the model being deleted. Null on the user's messages.
+    val modelName: String? = null
 )

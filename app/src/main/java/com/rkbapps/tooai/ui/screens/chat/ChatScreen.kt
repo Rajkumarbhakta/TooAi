@@ -2,6 +2,10 @@ package com.rkbapps.tooai.ui.screens.chat
 
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +27,7 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -46,6 +51,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,6 +63,10 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,6 +75,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -119,6 +130,24 @@ fun ChatScreen(
     // Switching is only offered while nothing is loading or generating. A load can't be
     // interrupted, and a model can't be freed under a running reply.
     val canSwitchModel = !isLoadingModel && !state.isChatRunning && llmModels.isNotEmpty()
+
+    // The list is reversed, so index 0 is the newest message, at the bottom. Compose keeps the
+    // message being looked at in place when one is added, which leaves a new message below the
+    // visible area. Messages are only added by sending, so the list goes to the bottom then.
+    // A reply growing at the bottom needs nothing: at offset 0 the list stays pinned to it,
+    // and a reader who has scrolled up is left where they are.
+    val listState = rememberLazyListState()
+    val messageCount = state.messages.size
+    var followedCount by rememberSaveable { mutableIntStateOf(messageCount) }
+    LaunchedEffect(messageCount) {
+        if (messageCount > followedCount) listState.scrollToItem(0)
+        followedCount = messageCount
+    }
+    val isAtLatest by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 48
+        }
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -233,23 +262,48 @@ fun ChatScreen(
                     modelName = modelName
                 )
             } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    reverseLayout = true,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.Bottom)
-                ) {
-                    items(
-                        state.messages.reversed(),
-                        key = { it.id }
-                    ) { message ->
-                        when(message.type){
-                            ChatType.CHAT -> UserMessageItem(message = message)
-                            ChatType.ASSISTANT -> AssistantMessageItem(
-                                message = message,
-                                modelName = modelName,
-                                isGenerating = state.isChatRunning &&
-                                        message.id == state.messages.last().id
+                Box(modifier = Modifier.weight(1f)) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        state = listState,
+                        reverseLayout = true,
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.Bottom)
+                    ) {
+                        items(
+                            state.messages.reversed(),
+                            key = { it.id }
+                        ) { message ->
+                            when(message.type){
+                                ChatType.CHAT -> UserMessageItem(message = message)
+                                ChatType.ASSISTANT -> AssistantMessageItem(
+                                    message = message,
+                                    // The model that wrote this reply, not the one loaded now.
+                                    modelName = message.modelName,
+                                    isGenerating = state.isChatRunning &&
+                                            message.id == state.messages.last().id
+                                )
+                            }
+                        }
+                    }
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = !isAtLatest,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 8.dp),
+                        enter = fadeIn() + scaleIn(),
+                        exit = fadeOut() + scaleOut()
+                    ) {
+                        SmallFloatingActionButton(
+                            onClick = { scope.launch { listState.animateScrollToItem(0) } },
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        ) {
+                            // The forward arrow turned to point down.
+                            Icon(
+                                painter = painterResource(R.drawable.arrow_forward),
+                                contentDescription = "Jump to latest message",
+                                modifier = Modifier.rotate(90f)
                             )
                         }
                     }

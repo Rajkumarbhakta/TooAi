@@ -252,6 +252,7 @@ class ChatRepository @Inject constructor(
         type = if (sender == "USER") ChatType.CHAT else ChatType.ASSISTANT,
         timestamp = timestamp,
         isError = isError,
+        modelName = modelName,
         statistics = ChatStatistics(
             timeToFirstToken = timeToFirstToken,
             prefillSpeed = prefillSpeed,
@@ -344,7 +345,12 @@ class ChatRepository @Inject constructor(
 
         // Add placeholder for AI response
         val aiMessageId = UUID.randomUUID().toString()
-        val aiMessage = ChatMessage(id = aiMessageId, message = "", type = ChatType.ASSISTANT)
+        val aiMessage = ChatMessage(
+            id = aiMessageId,
+            message = "",
+            type = ChatType.ASSISTANT,
+            modelName = _chatState.value.llmModel?.displayName
+        )
 
         // Save initial AI message to DB (empty)
         saveMessageToDb(aiMessage, sessionId)
@@ -505,7 +511,8 @@ class ChatRepository @Inject constructor(
                 prefillSpeed = chatMessage.statistics?.prefillSpeed,
                 decodeSpeed = chatMessage.statistics?.decodeSpeed,
                 totalLatency = chatMessage.statistics?.totalLatency,
-                tokenUsed = chatMessage.statistics?.tokenUsed
+                tokenUsed = chatMessage.statistics?.tokenUsed,
+                modelName = chatMessage.modelName
             )
             chatDao.insertMessage(entity)
         }
@@ -526,7 +533,8 @@ class ChatRepository @Inject constructor(
             decodeSpeed = chatMessage.statistics?.decodeSpeed,
             totalLatency = chatMessage.statistics?.totalLatency,
             tokenUsed = chatMessage.statistics?.tokenUsed,
-            isError = isError
+            isError = isError,
+            modelName = chatMessage.modelName
         )
         chatDao.updateMessage(entity)
     }
