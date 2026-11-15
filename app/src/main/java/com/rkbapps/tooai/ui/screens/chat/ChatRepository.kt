@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
+import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
@@ -45,12 +46,10 @@ class ChatRepository @Inject constructor(
 
     val llmModels = llmModelDao.getAllLlmModels()
 
-    companion object {
-        // Context management constants
-        private const val CONTEXT_THRESHOLD_PERCENTAGE = 0.75f // Reduce context at 75% of max tokens
-        private const val MIN_MESSAGES_TO_KEEP = 2 // Keep at least the last 2 message pairs
-    }
-    private var totalTokensUsed = 0
+    // Tokens the current conversation holds. An estimate when the conversation is built, then
+    // the engine's own counts once turns have run. See ChatContext.kt for how the window is split.
+    private var contextTokens = 0
+    private var contextMeasured = false
 
     // A cancelled conversation rejects every later message, and closing it while the native
     // decode unwinds crashes, so it is replaced just before the next send.
@@ -127,7 +126,7 @@ class ChatRepository @Inject constructor(
             )
         }
         val instance = try {
-            openInstance(model, historyPrompt(_chatState.value.messages))
+            openInstance(model, _chatState.value.messages)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -152,7 +151,6 @@ class ChatRepository @Inject constructor(
                 chatDao.updateSessionModel(sessionId, model.id)
                 null
             }
-            totalTokensUsed = 0
             isConversationCancelled = false
             _chatState.update {
                 it.copy(
@@ -165,7 +163,7 @@ class ChatRepository @Inject constructor(
         }
     }
 
-    private suspend fun openInstance(model: LlmModel, systemPrompt: String): LlmModelInstance {
+    private suspend fun openInstance(model: LlmModel, messages: List<ChatMessage>): LlmModelInstance {
         val engine = Engine(
             EngineConfig(
                 modelPath = model.path,
@@ -180,7 +178,7 @@ class ChatRepository @Inject constructor(
             // initialize() blocks and can't be interrupted. If the chat closed while it ran,
             // nothing else holds this engine, so it is freed here.
             currentCoroutineContext().ensureActive()
-            return LlmModelInstance(engine, engine.createConversation(conversationConfig(model, systemPrompt)))
+            return LlmModelInstance(engine, buildConversation(engine, model, messages))
         } catch (e: Throwable) {
             runCatching { engine.close() }
             throw e
@@ -195,28 +193,57 @@ class ChatRepository @Inject constructor(
         runCatching { instance.engine.close() }
     }
 
-    private fun conversationConfig(model: LlmModel, systemPrompt: String) = ConversationConfig(
-        samplerConfig = SamplerConfig(
-            temperature = model.temperature,
-            topK = model.topK,
-            topP = model.topP
-        ),
-        systemInstruction = Contents.of(systemPrompt),
-        // Null keeps the model's own template. See ChatTemplates.kt.
-        chatTemplate = chatTemplateOverride(model.path)
-    )
+    private fun budgetFor(model: LlmModel) =
+        ContextBudget(maxTokens = model.maxTokens, systemTokens = estimateTokens(getSystemPrompt()))
 
-    // The model starts without the chat's context, so the last exchange goes in the system prompt.
-    private fun historyPrompt(messages: List<ChatMessage>): String {
-        val history = StringBuilder(getSystemPrompt())
-        if (messages.isNotEmpty()) {
-            history.append("\n\nPrevious Chat History:\n")
-            messages.takeLast(MIN_MESSAGES_TO_KEEP).forEach { msg ->
-                val role = if (msg.type == ChatType.CHAT) "User" else "Model"
-                history.append("$role: ${msg.message}\n")
-            }
-        }
-        return history.toString()
+    /**
+     * Starts a conversation that already holds the newest history that fits, leaving room for a
+     * message of [pendingTokens] that is about to be sent.
+     *
+     * History goes in as real user and model turns. Pasted into the system prompt as a
+     * "User: ... Model: ..." transcript, small models copied that format into their replies.
+     */
+    private fun buildConversation(
+        engine: Engine,
+        model: LlmModel,
+        messages: List<ChatMessage>,
+        pendingTokens: Int = 0
+    ): Conversation {
+        val budget = budgetFor(model)
+        val history = selectHistory(messages, budget.historyBudget(pendingTokens))
+        val conversation = engine.createConversation(
+            ConversationConfig(
+                systemInstruction = Contents.of(getSystemPrompt()),
+                initialMessages = history.flatMap {
+                    listOf(Message.user(it.question.message), Message.model(it.answer.message))
+                },
+                samplerConfig = SamplerConfig(
+                    temperature = model.temperature,
+                    topK = model.topK,
+                    topP = model.topP
+                ),
+                // The pre-send check keeps this much room free, so a reply can always finish.
+                maxOutputToken = budget.replyReserve,
+                // Null keeps the model's own template. See ChatTemplates.kt.
+                chatTemplate = chatTemplateOverride(model.path)
+            )
+        )
+        contextTokens = estimateTokens(getSystemPrompt()) + history.sumOf { it.tokens }
+        contextMeasured = false
+        Log.d(
+            "ChatRepository",
+            "Conversation built: ${history.size} of ${completedExchanges(messages).size} exchanges, " +
+                    "~$contextTokens of ${model.maxTokens} tokens"
+        )
+        return conversation
+    }
+
+    // The first turn's count covers everything prefilled so far: the system prompt, the
+    // carried-over history and the message itself. Later counts are that turn alone.
+    private fun recordTurn(tokens: Int) {
+        contextTokens = if (contextMeasured) contextTokens + tokens else tokens
+        contextMeasured = true
+        Log.d("ChatRepository", "Turn used $tokens tokens, context now $contextTokens")
     }
 
     private fun ChatMessageEntity.toChatMessage() = ChatMessage(
@@ -224,6 +251,7 @@ class ChatRepository @Inject constructor(
         message = content,
         type = if (sender == "USER") ChatType.CHAT else ChatType.ASSISTANT,
         timestamp = timestamp,
+        isError = isError,
         statistics = ChatStatistics(
             timeToFirstToken = timeToFirstToken,
             prefillSpeed = prefillSpeed,
@@ -260,9 +288,8 @@ class ChatRepository @Inject constructor(
 
         try {
             instance.conversation.close()
-            val conversation = instance.engine.createConversation(conversationConfig(llmModel, getSystemPrompt()))
+            val conversation = buildConversation(instance.engine, llmModel, emptyList())
             val session = createSession(llmModel.id)
-            totalTokensUsed = 0
             isConversationCancelled = false
             _chatState.update {
                 it.copy(
@@ -288,8 +315,15 @@ class ChatRepository @Inject constructor(
             message
         }
         Log.d("ChatRepository", "sendMessage: $message")
-        if (isConversationCancelled) {
-            _chatState.value.instance?.let { reduceContextAndReinitialize(it) }
+        // Checked before sending, while the size of this message can still be allowed for. A
+        // cancelled conversation is replaced here too.
+        val pendingTokens = estimateTokens(message)
+        val loaded = _chatState.value.instance
+        val model = _chatState.value.llmModel
+        if (loaded != null && model != null &&
+            (isConversationCancelled || budgetFor(model).needsRebuild(contextTokens, pendingTokens))
+        ) {
+            withContext(Dispatchers.IO) { rebuildConversation(loaded, model, pendingTokens) }
             isConversationCancelled = false
         }
         val instance = _chatState.value.instance ?: return
@@ -359,8 +393,7 @@ class ChatRepository @Inject constructor(
                     val stats = calculateStatistics(start, firstTokenTs, curTs, prefillTokens, decodeTokens, true)
                     val benchmarkInfo = instance.conversation.getBenchmarkInfo()
                     val tokenUsedForCurrentChat = (benchmarkInfo.lastPrefillTokenCount + benchmarkInfo.lastDecodeTokenCount)
-                    // Check if context is approaching limit and reduce if necessary
-                    checkAndManageContextSize(instance,tokenUsedForCurrentChat)
+                    recordTurn(tokenUsedForCurrentChat)
                     // updated
                     _chatState.update { state ->
                         val messages = state.messages.toMutableList()
@@ -420,7 +453,7 @@ class ChatRepository @Inject constructor(
                     val messages = state.messages.toMutableList()
                     val msgIndex = messages.indexOfFirst { it.id == aiMessageId }
                     if (msgIndex != -1) {
-                        val errorMsg = messages[msgIndex].copy(message = "Error: ${e.message}")
+                        val errorMsg = messages[msgIndex].copy(message = "Error: ${e.message}", isError = true)
                         messages[msgIndex] = errorMsg
                         updateMessageInDb(errorMsg, sessionId, isError = true)
                     }
@@ -437,7 +470,7 @@ class ChatRepository @Inject constructor(
             val msgIndex = messages.indexOfFirst { it.id == aiMessageId }
             if (msgIndex != -1) {
                 val stopped = messages[msgIndex].copy(
-                    message = messages[msgIndex].message.ifEmpty { "Stopped." }
+                    message = messages[msgIndex].message.ifEmpty { STOPPED_PLACEHOLDER }
                 )
                 messages[msgIndex] = stopped
                 updateMessageInDb(stopped, sessionId)
@@ -446,54 +479,17 @@ class ChatRepository @Inject constructor(
         }
     }
 
-    /**
-     * Checks if context size is approaching the limit and reduces chat history if needed.
-     * This prevents the model from generating weird responses due to context overflow.
-     */
-    @OptIn(ExperimentalApi::class)
-    private fun checkAndManageContextSize(instance: LlmModelInstance,tokenUsed:Int) {
-        val llmModel = _chatState.value.llmModel ?: return
-        val maxTokens = llmModel.maxTokens
-        val contextThreshold = (maxTokens * CONTEXT_THRESHOLD_PERCENTAGE).toInt()
-
+    // Closes the conversation and starts one holding the newest history that fits.
+    private fun rebuildConversation(instance: LlmModelInstance, model: LlmModel, pendingTokens: Int) {
         try {
-            totalTokensUsed+=tokenUsed
-            Log.d("ChatRepository", "Context Check - Tokens Used: $totalTokensUsed, Threshold: $contextThreshold, Max: $maxTokens")
-            // If tokens exceed threshold, reduce context
-            if (totalTokensUsed >= contextThreshold) {
-                Log.d("ChatRepository", "Context threshold exceeded! Reducing chat history...")
-                reduceContextAndReinitialize(instance)
-            }
-        } catch (e: Exception) {
-            Log.w("ChatRepository", "Error checking context size: ${e.message}")
-        }
-    }
-
-    /**
-     * Reduces chat history by removing older messages and reinitialized the conversation.
-     * Keeps only the most recent messages to maintain conversation context.
-     */
-    private fun reduceContextAndReinitialize(instance: LlmModelInstance) {
-        val llmModel = _chatState.value.llmModel ?: return
-        val currentMessages = _chatState.value.messages
-
-        try {
-            Log.d("ChatRepository", "Reducing context: keeping the last $MIN_MESSAGES_TO_KEEP of ${currentMessages.size} messages")
-
-            // Close old conversation
             instance.conversation.close()
-
-            // Create new conversation with reduced context
-            val conversation = instance.engine.createConversation(
-                conversationConfig(llmModel, historyPrompt(currentMessages))
-            )
-
-            totalTokensUsed = 0
+            val conversation =
+                buildConversation(instance.engine, model, _chatState.value.messages, pendingTokens)
             _chatState.update {
                 it.copy(instance = it.instance?.copy(conversation = conversation))
             }
         } catch (e: Exception) {
-            Log.e("ChatRepository", "Error reducing context: ${e.message}", e)
+            Log.e("ChatRepository", "Error rebuilding the conversation: ${e.message}", e)
         }
     }
 

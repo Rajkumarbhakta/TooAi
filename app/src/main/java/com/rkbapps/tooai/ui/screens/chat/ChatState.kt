@@ -30,7 +30,9 @@ data class ChatMessage(
     val timestamp: Long = System.currentTimeMillis(),
     val completedAt: Long? = null,
     val isResponding: Boolean = false,
-    val statistics: ChatStatistics? = null
+    val statistics: ChatStatistics? = null,
+    // A failed reply. Shown in the chat, but never handed back to the model as history.
+    val isError: Boolean = false
 )
 
 data class ChatStatistics(

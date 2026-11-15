@@ -210,6 +210,19 @@ ui/screens/sticker/StickerEditorScreen.kt     canvas, tools, text sheet
 - Verified on device: switching frees the old model (its file leaves `/proc/<pid>/maps`), and
   leaving mid-load or mid-reply returns to ~150 MB PSS with no crash.
 
+**Chat context** (`ui/screens/chat/ChatContext.kt`)
+- The window (the model's Max tokens) is split: 30% reserved for the next reply (also set as
+  `maxOutputToken`), up to 40% for history carried into a rebuilt conversation, the rest for new
+  turns. Filling history to the brim would force a rebuild on every turn.
+- The rebuild check runs **before** a send, when the message's size is known, not after a reply.
+- History goes in through `ConversationConfig.initialMessages` as whole question/answer pairs.
+  Pasted into the system prompt as a "User: ... Model: ..." transcript, small models echoed that
+  format in replies.
+- There is no token-count API, so sizes are estimated high (bytes / 3). An exchange's real count
+  (`tokenUsed`) is used when lower; without it a full-length reply never fitted the budget and
+  the rebuild kept nothing. The newest exchange is trimmed to fit rather than dropped.
+- The first turn's token count after a build includes the system prompt and carried history.
+
 **Chat templates**
 - Since LiteRT-LM 0.17, message content reaches a model's Jinja template as a list of parts. Qwen2.5's
   ChatML template joins it with `+` and fails every message with "Failed to apply template ...
