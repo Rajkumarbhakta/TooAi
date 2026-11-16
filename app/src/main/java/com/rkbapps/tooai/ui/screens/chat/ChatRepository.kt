@@ -1,13 +1,11 @@
 package com.rkbapps.tooai.ui.screens.chat
 
 import android.util.Log
-import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
-import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.ExperimentalApi
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.SamplerConfig
@@ -15,10 +13,13 @@ import com.rkbapps.tooai.db.dao.ChatDao
 import com.rkbapps.tooai.db.dao.LlmModelDao
 import com.rkbapps.tooai.db.entity.ChatSession
 import com.rkbapps.tooai.db.entity.LlmModel
+import com.rkbapps.tooai.utils.ModelBackend
 import com.rkbapps.tooai.utils.Prompts
 import com.rkbapps.tooai.utils.chatTemplateOverride
+import com.rkbapps.tooai.utils.openEngine
 import com.rkbapps.tooai.utils.UiState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -164,23 +165,18 @@ class ChatRepository @Inject constructor(
     }
 
     private suspend fun openInstance(model: LlmModel, messages: List<ChatMessage>): LlmModelInstance {
-        val engine = Engine(
-            EngineConfig(
-                modelPath = model.path,
-                backend = Backend.CPU(),
-                visionBackend = null,
-                audioBackend = null,
-                maxNumTokens = model.maxTokens
-            )
-        )
+        val loaded = openEngine(model)
         try {
-            engine.initialize()
-            // initialize() blocks and can't be interrupted. If the chat closed while it ran,
-            // nothing else holds this engine, so it is freed here.
+            // Loading blocks and can't be interrupted. If the chat closed while it ran, nothing
+            // else holds this engine, so it is freed here.
             currentCoroutineContext().ensureActive()
-            return LlmModelInstance(engine, buildConversation(engine, model, messages))
+            return LlmModelInstance(
+                engine = loaded.engine,
+                conversation = buildConversation(loaded.engine, model, messages),
+                backend = loaded.backend
+            )
         } catch (e: Throwable) {
-            runCatching { engine.close() }
+            runCatching { loaded.engine.close() }
             throw e
         }
     }
@@ -452,8 +448,15 @@ class ChatRepository @Inject constructor(
             throw e
         } catch (e: Exception) {
             Log.e("ChatRepository", "generateResponse: ${e.localizedMessage}",e)
-            if (!isRetry) {
-                generateResponse(message, instance, true, aiMessageId, sessionId)
+            // One retry. On GPU it moves to CPU first: some GPU problems only show when the model
+            // is asked to generate, after a load that looked fine.
+            val retryOn = when {
+                isRetry -> null
+                instance.backend == ModelBackend.GPU -> fallBackToCpu(instance, estimateTokens(message))
+                else -> instance
+            }
+            if (retryOn != null) {
+                generateResponse(message, retryOn, true, aiMessageId, sessionId)
             } else {
                 _chatState.update { state ->
                     val messages = state.messages.toMutableList()
@@ -469,6 +472,52 @@ class ChatRepository @Inject constructor(
         }
     }
 
+
+    /**
+     * Reloads the model on CPU after a reply failed on GPU, so the message can be retried there.
+     * Returns null when the CPU load fails too, or the chat closed meanwhile. The model's saved
+     * choice is left as it is.
+     */
+    private suspend fun fallBackToCpu(failed: LlmModelInstance, pendingTokens: Int): LlmModelInstance? {
+        val model = _chatState.value.llmModel ?: return null
+        val caller = currentCoroutineContext()[Job]
+        Log.w("ChatRepository", "Reply failed on GPU. Reloading ${model.displayName} on CPU.")
+        // Non-cancellable: the load can't be interrupted, and a loaded engine must always end up
+        // either in the state or closed.
+        return withContext(Dispatchers.IO + NonCancellable) {
+            // The failed reply isn't decoding, so its engine can be freed, and it has to go
+            // first: two models don't fit in memory together.
+            _chatState.update { it.copy(instance = null) }
+            runCatching { failed.conversation.close() }
+            runCatching { failed.engine.close() }
+            try {
+                val loaded = openEngine(model.copy(backend = ModelBackend.CPU.name))
+                if (caller?.isActive == false) {
+                    // The chat closed or the reply was stopped during the load.
+                    loaded.engine.close()
+                    return@withContext null
+                }
+                val instance = try {
+                    LlmModelInstance(
+                        engine = loaded.engine,
+                        conversation = buildConversation(
+                            loaded.engine, model, _chatState.value.messages, pendingTokens
+                        ),
+                        backend = loaded.backend
+                    )
+                } catch (e: Throwable) {
+                    runCatching { loaded.engine.close() }
+                    throw e
+                }
+                isConversationCancelled = false
+                _chatState.update { it.copy(instance = instance) }
+                instance
+            } catch (e: Exception) {
+                Log.e("ChatRepository", "CPU fallback failed: ${e.message}", e)
+                null
+            }
+        }
+    }
 
     private suspend fun keepStoppedResponse(aiMessageId: String, sessionId: String) {
         _chatState.update { state ->

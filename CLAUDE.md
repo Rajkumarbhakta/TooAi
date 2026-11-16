@@ -66,13 +66,14 @@ JetBrains Runtime every run.
 
 - **DI**: Hilt. Only one module — `di/DatabaseModule.kt` (Gson, Room `Database`, all DAOs).
   Repositories are plain `@Inject constructor`, unscoped.
-- **DB**: Room v7, `app_database`, hand-written migrations in `db/Database.kt`. Entities `QrScan`, `RecognizedText`, `DocumentScans`,
+- **DB**: Room v8, `app_database`, hand-written migrations in `db/Database.kt`. Entities `QrScan`, `RecognizedText`, `DocumentScans`,
   `LlmModel`, `ChatSession`, `ChatMessage`.
 - **Nav**: Navigation 3 (`navigation/NavManager.kt`), back stack is a process-global
   `MainActivity.backStack` snapshot list. `ChatViewModel.init` reads its route off that static —
   which is why nothing else should reuse `ChatViewModel`.
 - **LLM**: LiteRT-LM. User imports `.task` / `.litertlm` files into
-  `getExternalFilesDir(null)/-imports/`, registered as `LlmModel` rows. `Backend.CPU` hard-coded.
+  `getExternalFilesDir(null)/-imports/`, registered as `LlmModel` rows. Each model runs on CPU or
+  GPU (`LlmModel.backend`); both paths load through `openEngine()` in `utils/ModelBackend.kt`.
 
 Two independent LLM paths, deliberately:
 
@@ -209,6 +210,17 @@ ui/screens/sticker/StickerEditorScreen.kt     canvas, tools, text sheet
   the decode to unwind. A load that outlives the screen frees its own engine in `openInstance`.
 - Verified on device: switching frees the old model (its file leaves `/proc/<pid>/maps`), and
   leaving mid-load or mid-reply returns to ~150 MB PSS with no crash.
+
+**GPU backend**
+- GPU runs through the vendor's OpenCL library. Since Android 12 an app can only load it if the
+  manifest declares `<uses-native-library android:name="libOpenCL.so">`. Without it the engine
+  still **loads** on GPU and the first message fails with "Can not find OpenCL library".
+- So a GPU failure can show at load time or only at generation time. `openEngine()` retries a
+  failed load on CPU. `ChatRepository.fallBackToCpu()` covers a reply that fails on GPU: it frees
+  the GPU engine, reloads on CPU and retries the message once. AI Writer has only the load-time one.
+- The chip shows where the model actually loaded (`LlmModelInstance.backend`), not the setting.
+- Measured on the SM-E066B (Mali) with Gemma 3 1B: GPU 8.3 tok/s against 7.7-8.2 on CPU, and
+  1.65-2.0 GB PSS against 1.1 GB. No gain there, so CPU stays the default.
 
 **Chat screen**
 - A reply's label is the model that wrote it, stored per message (`chat_messages.modelName`, DB

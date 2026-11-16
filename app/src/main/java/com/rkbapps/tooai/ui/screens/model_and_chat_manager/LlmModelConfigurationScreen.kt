@@ -50,6 +50,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -59,6 +62,7 @@ import com.rkbapps.tooai.ui.composabels.LargeCollapsingTopBar
 import com.rkbapps.tooai.ui.theme.TooAiTheme
 import com.rkbapps.tooai.ui.theme.pageContainerColor
 import com.rkbapps.tooai.ui.theme.rowContainerColor
+import com.rkbapps.tooai.utils.ModelBackend
 import com.rkbapps.tooai.utils.ModelConfigs
 import com.rkbapps.tooai.utils.roundTo2Decimals
 import androidx.compose.ui.platform.LocalLocale
@@ -190,6 +194,14 @@ fun LlmModelConfigurationScreen(
                         )
                     }
                 }
+
+                BackendSelector(
+                    backend = ModelBackend.of(llmModelUpdated.backend),
+                    enabled = !isImporting,
+                    onSelect = { backend ->
+                        llmModelUpdated = llmModelUpdated.copy(backend = backend.name)
+                    }
+                )
             }
         }
     }
@@ -327,6 +339,71 @@ private fun ParameterSlider(
         supportingText?.let {
             Text(
                 text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun BackendSelector(
+    backend: ModelBackend,
+    enabled: Boolean,
+    onSelect: (ModelBackend) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = rowContainerColor()
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Run on",
+                style = MaterialTheme.typography.titleMediumEmphasized
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
+                ModelBackend.entries.forEachIndexed { index, option ->
+                    val checked = option == backend
+                    ToggleButton(
+                        checked = checked,
+                        onCheckedChange = { onSelect(option) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
+                            .semantics { role = Role.RadioButton },
+                        enabled = enabled,
+                        shapes = when (index) {
+                            0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                            ModelBackend.entries.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                            else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                        },
+                        colors = ToggleButtonDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            checkedContainerColor = MaterialTheme.colorScheme.primary,
+                            checkedContentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
+                        if (checked) {
+                            Icon(
+                                painter = painterResource(R.drawable.check),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .padding(end = 6.dp)
+                                    .size(18.dp)
+                            )
+                        }
+                        Text(text = option.label, style = MaterialTheme.typography.labelLargeEmphasized)
+                    }
+                }
+            }
+            Text(
+                text = "GPU can be faster, but not every model or phone supports it. " +
+                        "The model falls back to CPU if GPU can't be used.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

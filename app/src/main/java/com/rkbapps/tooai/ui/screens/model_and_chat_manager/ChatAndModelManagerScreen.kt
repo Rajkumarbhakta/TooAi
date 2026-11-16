@@ -102,6 +102,7 @@ import com.rkbapps.tooai.ui.theme.SurfaceStatusBar
 import com.rkbapps.tooai.ui.theme.TooAiTheme
 import com.rkbapps.tooai.ui.theme.pageContainerColor
 import com.rkbapps.tooai.ui.theme.rowContainerColor
+import com.rkbapps.tooai.utils.ModelBackend
 import com.rkbapps.tooai.utils.ModelConfigs
 import com.rkbapps.tooai.utils.dateGroupLabel
 import com.rkbapps.tooai.utils.formatFileSize
@@ -987,7 +988,7 @@ fun LlmModelItemUi(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                ParamBadge(label = "CPU")
+                ParamBadge(label = ModelBackend.of(model.backend).label)
                 ParamBadge(label = "Temp ${model.temperature}")
                 ParamBadge(label = "Top-k ${model.topK}")
                 ParamBadge(label = "Top-p ${model.topP}")

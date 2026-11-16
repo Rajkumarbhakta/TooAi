@@ -1,6 +1,7 @@
 package com.rkbapps.tooai.ui.screens.chat
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -96,6 +97,7 @@ import com.rkbapps.tooai.navigation.NavigationEntry
 import com.rkbapps.tooai.ui.theme.SurfaceStatusBar
 import com.rkbapps.tooai.ui.theme.ToolShapes
 import com.rkbapps.tooai.ui.theme.toolPalette
+import com.rkbapps.tooai.utils.ModelBackend
 import com.rkbapps.tooai.utils.PredefinePrompts
 import com.rkbapps.tooai.utils.Prompts
 import com.rkbapps.tooai.utils.TypeOfPrompt
@@ -131,6 +133,17 @@ fun ChatScreen(
     // interrupted, and a model can't be freed under a running reply.
     val canSwitchModel = !isLoadingModel && !state.isChatRunning && llmModels.isNotEmpty()
 
+    // Where the model actually loaded. Until it has, the chip shows what was asked for.
+    val chosenBackend = ModelBackend.of(state.llmModel?.backend)
+    val backend = state.instance?.backend ?: chosenBackend
+    val context = LocalContext.current
+    // Keyed on the engine, so it is said once per load and not again on each rebuilt conversation.
+    LaunchedEffect(state.instance?.engine) {
+        if (state.instance != null && chosenBackend == ModelBackend.GPU && backend == ModelBackend.CPU) {
+            Toast.makeText(context, "GPU isn't available for this model here. Running on CPU.", Toast.LENGTH_LONG).show()
+        }
+    }
+
     // The list is reversed, so index 0 is the newest message, at the bottom. Compose keeps the
     // message being looked at in place when one is added, which leaves a new message below the
     // visible area. Messages are only added by sending, so the list goes to the bottom then.
@@ -161,7 +174,7 @@ fun ChatScreen(
                         label = when {
                             isLoadingModel -> "Loading${modelName?.let { " $it" }.orEmpty()}…"
                             modelName == null -> "Choose model"
-                            else -> "$modelName · CPU"
+                            else -> "$modelName · ${backend.label}"
                         },
                         isReady = isModelReady,
                         enabled = canSwitchModel,

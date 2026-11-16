@@ -3,6 +3,7 @@ package com.rkbapps.tooai.ui.screens.chat
 import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.Engine
 import com.rkbapps.tooai.db.entity.LlmModel
+import com.rkbapps.tooai.utils.ModelBackend
 import com.rkbapps.tooai.utils.Prompts
 import com.rkbapps.tooai.utils.UiState
 import java.util.UUID
@@ -21,7 +22,12 @@ data class ChatState(
     val modelUnavailable: Boolean = false
 )
 
-data class LlmModelInstance(val engine: Engine, val conversation: Conversation)
+// backend is where the model actually loaded, which is CPU when a GPU load fell back.
+data class LlmModelInstance(
+    val engine: Engine,
+    val conversation: Conversation,
+    val backend: ModelBackend = ModelBackend.CPU
+)
 
 data class ChatMessage(
     val id: String = UUID.randomUUID().toString(),

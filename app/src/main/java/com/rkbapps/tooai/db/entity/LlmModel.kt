@@ -1,5 +1,6 @@
 package com.rkbapps.tooai.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -17,4 +18,7 @@ data class LlmModel(
     val topP: Double,
     val temperature: Double,
     val createdAt: Long,
+    // A ModelBackend name. CPU for rows saved before the column existed.
+    @ColumnInfo(defaultValue = "CPU")
+    val backend: String = "CPU",
 )

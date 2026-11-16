@@ -16,7 +16,7 @@ import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.db.entity.QrScan
 import com.rkbapps.tooai.db.entity.RecognizedText
 
-@Database(entities = [QrScan::class, RecognizedText::class, DocumentScans::class, LlmModel::class, ChatSession::class, ChatMessage::class], version = 7, exportSchema = false)
+@Database(entities = [QrScan::class, RecognizedText::class, DocumentScans::class, LlmModel::class, ChatSession::class, ChatMessage::class], version = 8, exportSchema = false)
 abstract class Database : RoomDatabase() {
     abstract fun qrScanDao(): QrScanDao
     abstract fun recognizedTextDao(): RecognizedTextDao
@@ -75,6 +75,13 @@ abstract class Database : RoomDatabase() {
                             "WHERE s.`id` = `chat_messages`.`sessionId`) " +
                             "WHERE `sender` = 'ASSISTANT'"
                 )
+            }
+        }
+
+        val MIGRATION_7_8: Migration = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Every model ran on CPU until now.
+                db.execSQL("ALTER TABLE `LlmModel` ADD COLUMN `backend` TEXT NOT NULL DEFAULT 'CPU'")
             }
         }
     }

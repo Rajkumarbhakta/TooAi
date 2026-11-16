@@ -2,18 +2,17 @@
 package com.rkbapps.tooai.ui.screens.ai_writer
 
 import android.util.Log
-import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
-import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.SamplerConfig
 import com.rkbapps.tooai.db.dao.LlmModelDao
 import com.rkbapps.tooai.db.entity.LlmModel
 import com.rkbapps.tooai.utils.chatTemplateOverride
+import com.rkbapps.tooai.utils.openEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -44,17 +43,8 @@ class AiWriterRepository @Inject constructor(
      */
     suspend fun loadEngine(model: LlmModel): Result<Engine> = withContext(Dispatchers.IO) {
         try {
-            val engine = Engine(
-                engineConfig = EngineConfig(
-                    modelPath = model.path,
-                    backend = Backend.CPU(),
-                    visionBackend = null,
-                    audioBackend = null,
-                    maxNumTokens = model.maxTokens
-                )
-            )
-            engine.initialize()
-            Result.success(engine)
+            // Uses the model's chosen backend, falling back to CPU. See ModelBackend.kt.
+            Result.success(openEngine(model).engine)
         } catch (e: Exception) {
             Log.e(TAG, "loadEngine failed", e)
             Result.failure(IllegalStateException(e.readableMessage()))
