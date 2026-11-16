@@ -25,7 +25,7 @@ interface LlmModelDao {
 
 
     @Query("SELECT * FROM llmmodel WHERE id = :id")
-    suspend fun getLlmModelById(id: Long): LlmModel
+    suspend fun getLlmModelById(id: Long): LlmModel?
 
 
 

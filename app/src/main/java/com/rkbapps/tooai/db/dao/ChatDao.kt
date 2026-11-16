@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
 import com.rkbapps.tooai.db.entity.ChatMessage
+import com.rkbapps.tooai.db.entity.ChatReplyPreview
 import com.rkbapps.tooai.db.entity.ChatSession
 import kotlinx.coroutines.flow.Flow
 
@@ -34,14 +35,33 @@ interface ChatDao {
     @Query("Update chat_sessions set modelId=:modelId where id = :sessionId")
     suspend fun updateSessionModel(sessionId: String,modelId: Long)
 
+    @Query("SELECT COUNT(*) FROM chat_sessions WHERE modelId = :modelId")
+    suspend fun countSessionsForModel(modelId: Long): Int
+
     @Query("SELECT * FROM chat_messages WHERE sessionId = :sessionId ORDER BY timestamp ASC")
     fun getMessagesForSessionFlow(sessionId: String): Flow<List<ChatMessage>>
 
     @Query("SELECT * FROM chat_messages WHERE sessionId = :sessionId ORDER BY timestamp ASC")
     suspend fun getMessagesForSession(sessionId: String): List<ChatMessage>
 
+    // Latest non-error reply of each session.
+    @Query(
+        """
+        SELECT sessionId, content FROM chat_messages AS m
+        WHERE sender = 'ASSISTANT' AND isError = 0 AND timestamp = (
+            SELECT MAX(timestamp) FROM chat_messages
+            WHERE sessionId = m.sessionId AND sender = 'ASSISTANT' AND isError = 0
+        )
+        """
+    )
+    fun getLatestReplies(): Flow<List<ChatReplyPreview>>
+
     @Query("DELETE FROM chat_sessions WHERE id = :sessionId")
     suspend fun deleteSession(sessionId: String)
+
+    // chat_messages rows go with their session via ON DELETE CASCADE.
+    @Query("DELETE FROM chat_sessions")
+    suspend fun deleteAllSessions()
 
     @Query("DELETE FROM chat_messages WHERE sessionId = :sessionId")
     suspend fun deleteMessagesForSession(sessionId: String)

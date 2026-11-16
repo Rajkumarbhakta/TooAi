@@ -3,7 +3,7 @@
 Offline-first Android app. On-device LLM chat plus ML Kit vision tools (doc scan, QR, text
 recognition, subject segmentation). Single module `:app`, package `com.rkbapps.tooai`.
 
-Kotlin 2.3.10 · AGP 9.0.0 · Compose BOM 2026.02.01 · minSdk 26 / target 36 · Hilt · Room ·
+Kotlin 2.4.21 · AGP 9.3.1 · Compose BOM 2026.09.00 + Material3 1.5.0-rc01 · minSdk 26 / target 37 · Hilt · Room ·
 Navigation 3 · LiteRT-LM.
 
 ---
@@ -66,13 +66,14 @@ JetBrains Runtime every run.
 
 - **DI**: Hilt. Only one module — `di/DatabaseModule.kt` (Gson, Room `Database`, all DAOs).
   Repositories are plain `@Inject constructor`, unscoped.
-- **DB**: Room v5, `app_database`. Entities `QrScan`, `RecognizedText`, `DocumentScans`,
+- **DB**: Room v8, `app_database`, hand-written migrations in `db/Database.kt`. Entities `QrScan`, `RecognizedText`, `DocumentScans`,
   `LlmModel`, `ChatSession`, `ChatMessage`.
 - **Nav**: Navigation 3 (`navigation/NavManager.kt`), back stack is a process-global
   `MainActivity.backStack` snapshot list. `ChatViewModel.init` reads its route off that static —
   which is why nothing else should reuse `ChatViewModel`.
 - **LLM**: LiteRT-LM. User imports `.task` / `.litertlm` files into
-  `getExternalFilesDir(null)/-imports/`, registered as `LlmModel` rows. `Backend.CPU` hard-coded.
+  `getExternalFilesDir(null)/-imports/`, registered as `LlmModel` rows. Each model runs on CPU or
+  GPU (`LlmModel.backend`); both paths load through `openEngine()` in `utils/ModelBackend.kt`.
 
 Two independent LLM paths, deliberately:
 
@@ -143,35 +144,37 @@ activity/AiWriterActivity.kt            intent parsing, result return, finish() 
 ui/screens/ai_writer/AiWriterState.kt   pages + helpers + state/Stage
 ui/screens/ai_writer/AiWriterViewModel.kt  engine, variants, cancellation
 ui/screens/ai_writer/AiWriterRepository.kt one-shot LiteRT (no ChatDao)
-ui/screens/ai_writer/AiWriterSheet.kt   all Compose (~1000 lines)
+ui/screens/ai_writer/AiWriterSheet.kt   all Compose (~1000 lines), restyled from the M3E tokens (no board exists)
 utils/PredefinePrompts.kt               every prompt string + type/sub-type enums
 ```
 
 ---
 
-## ⚠️ Uncommitted ML Kit GenAI scaffolding — currently dead code
+## Sticker editor
 
-`AiWriterViewModel.kt` contains ~170 lines of Google ML Kit GenAI (Gemini Nano) sample code:
-`Proofreader`, `Summarizer`, `Rewriter` clients plus `prepareAndStart*` / `start*Request`
-functions.
+Its own route, `NavigationEntry.StickerEditor(sourcePath)`, opened from the Background Remover's
+"Make sticker" card. A bitmap can't go in a route, so `StickerRepository.writeSource` trims the
+cut-out, caps it at 1024 px and writes a PNG to `cache/sticker_source/`; the editor loads that path.
 
-**None of it is reachable.** Nothing outside the ViewModel calls any of it — every UI path still
-goes through LiteRT-LM. The functions discard their results (`runInference(...).await().results`
-assigned and dropped; the streaming lambda body is an empty comment) and never touch
-`AiWriterState`. The only runtime effect is that three clients are constructed at ViewModel init
-and closed in `onCleared()`.
+- **One document, one renderer.** `StickerDocument` is immutable and lives in 512 × 512 sticker
+  space. `drawSticker()` in `StickerMaker.kt` draws it for both the on-screen canvas and the
+  exported WebP, so what is saved is what was shown. Don't add a second drawing path for preview.
+- **Undo** is a stack of earlier documents. Change the document only through `edit()` (or, for a
+  drag, the one `record()` at the start of the gesture) or the change can't be undone.
+- **Gestures.** `selectedId == null` means gestures move the cut-out; otherwise they move that text
+  item. The canvas consumes drags, so the page behind can't be scrolled from it. That is why
+  opening a tool collapses the top bar: its options have to fit without scrolling.
+- **Emoji are text items** with `isEmoji = true` (no colour, font or edge), typed from the keyboard.
+- **Export** is lossy WebP stepped down to fit 100 KB. Copy puts a `content://` URI on the
+  clipboard; there is no sticker clipboard type, and no WhatsApp sticker-pack integration.
 
-Do not treat this as the architecture, and do not "fix" it silently — ask first whether the
-intent is to migrate Polish/Summarize/Proofread onto Gemini Nano (with LiteRT as fallback for
-devices without it) or to delete it.
-
-Also uncommitted and worth knowing:
-
-- `libs.versions.toml`: `genai-rewriting` uses `version.ref="summarization"`. The `rewriting`
-  alias on line 29 is unused. Same value today, so it compiles, but the two will drift.
-- `kotlinx-coroutines-guava` was already present; it's what makes `.await()` work on ML Kit's
-  `ListenableFuture`.
-- No R8 rules or manifest `<meta-data>` for GenAI feature auto-download.
+```
+ui/screens/sticker/StickerDocument.kt         layers, transforms, pure maths (unit-tested)
+ui/screens/sticker/StickerMaker.kt            trim, render, hit-testing, WebP encode
+ui/screens/sticker/StickerEditorViewModel.kt  selection, gestures, undo, export
+ui/screens/sticker/StickerRepository.kt       source file, sticker cache, save to Pictures/TooAi/Stickers
+ui/screens/sticker/StickerEditorScreen.kt     canvas, tools, text sheet
+```
 
 ---
 
@@ -195,9 +198,64 @@ Also uncommitted and worth knowing:
 - Cancelling the coroutine does **not** stop the native LiteRT decode. You must also call
   `conversation.cancelProcess()` (`repository.cancel`). See `cancelGeneration()`.
 
+**Chat models**
+- A chat's model can be deleted, or its file can vanish while the row stays. `loadSession` loads
+  the history first and marks the model `modelUnavailable` instead of failing, so the chat still
+  opens and offers Choose model. Don't move message loading back behind the engine.
+- All model work in `ChatViewModel` goes through `runModelTask`, one task at a time.
+  `engine.initialize()` blocks and can't be interrupted, so two loads side by side meant two
+  models in memory. A switch stops the reply, joins it, releases the old engine, then loads.
+- The session's `modelId` is written only after a load succeeds, never before.
+- `onCleared` must not close the engine inline: it waits (off `viewModelScope`) for the load and
+  the decode to unwind. A load that outlives the screen frees its own engine in `openInstance`.
+- Verified on device: switching frees the old model (its file leaves `/proc/<pid>/maps`), and
+  leaving mid-load or mid-reply returns to ~150 MB PSS with no crash.
+
+**GPU backend**
+- GPU runs through the vendor's OpenCL library. Since Android 12 an app can only load it if the
+  manifest declares `<uses-native-library android:name="libOpenCL.so">`. Without it the engine
+  still **loads** on GPU and the first message fails with "Can not find OpenCL library".
+- So a GPU failure can show at load time or only at generation time. `openEngine()` retries a
+  failed load on CPU. `ChatRepository.fallBackToCpu()` covers a reply that fails on GPU: it frees
+  the GPU engine, reloads on CPU and retries the message once. AI Writer has only the load-time one.
+- The chip shows where the model actually loaded (`LlmModelInstance.backend`), not the setting.
+- Measured on the SM-E066B (Mali) with Gemma 3 1B: GPU 8.3 tok/s against 7.7-8.2 on CPU, and
+  1.65-2.0 GB PSS against 1.1 GB. No gain there, so CPU stays the default.
+
+**Chat screen**
+- A reply's label is the model that wrote it, stored per message (`chat_messages.modelName`, DB
+  v7). Read `message.modelName`, not the loaded model, or switching models relabels the history.
+  It is a name, not an id, so it survives the model being deleted.
+- The message list is reversed with keyed items. Compose keeps the visible item in place when
+  one is added, so a new message lands below the fold unless the list is sent to index 0 when
+  the count grows. A streaming reply needs nothing extra: at offset 0 the list stays pinned to it.
+
+**Chat context** (`ui/screens/chat/ChatContext.kt`)
+- The window (the model's Max tokens) is split: 30% reserved for the next reply (also set as
+  `maxOutputToken`), up to 40% for history carried into a rebuilt conversation, the rest for new
+  turns. Filling history to the brim would force a rebuild on every turn.
+- The rebuild check runs **before** a send, when the message's size is known, not after a reply.
+- History goes in through `ConversationConfig.initialMessages` as whole question/answer pairs.
+  Pasted into the system prompt as a "User: ... Model: ..." transcript, small models echoed that
+  format in replies.
+- There is no token-count API, so sizes are estimated high (bytes / 3). An exchange's real count
+  (`tokenUsed`) is used when lower; without it a full-length reply never fitted the budget and
+  the rebuild kept nothing. The newest exchange is trimmed to fit rather than dropped.
+- The first turn's token count after a build includes the system prompt and carried history.
+
+**Chat templates**
+- Since LiteRT-LM 0.17, message content reaches a model's Jinja template as a list of parts. Qwen2.5's
+  ChatML template joins it with `+` and fails every message with "Failed to apply template ...
+  string and sequence". `utils/ChatTemplates.kt` spots that pattern in the model file's header and
+  passes the app's own ChatML template through `ConversationConfig.chatTemplate`. Every place that
+  builds a `ConversationConfig` (chat and AI Writer) must pass `chatTemplateOverride(model.path)`.
+- LiteRT-LM's template engine is a Jinja subset. Keep the override to `is string`, `for` and
+  `item['key']`, which is what Gemma's working template uses.
+
 **Compose**
 - An infinite `rememberInfiniteTransition` left running in an idle state burns a full CPU core.
-  `TypingDots` was being shown in `Stage.Idle` and did exactly that. Measure with
+  The old `TypingDots` was shown in `Stage.Idle` and did exactly that; its replacement,
+  `WorkingIndicator` (a `LoadingIndicator`), must likewise only appear while busy. Measure with
   `/proc/<pid>/stat` deltas — `top` output on this device is unreliable to parse.
 - `Modifier.rotate()` in a draw scope rotates the **geometry**, not just the brush. The animated
   gradient border clips to the border ring (`Path.combine(Difference, outer, inner)`) and rotates
@@ -206,6 +264,12 @@ Also uncommitted and worth knowing:
 - `FlowRow` is `androidx.compose.foundation.layout`, not `material3`.
 - The sheet needs `imePadding()` — without it the keyboard covers the `PROMPT` page composer.
   Only that page has a text field, so it's easy to miss.
+
+**Status bar**
+- Icons are chosen for the `primary` top bars. A migrated screen with a surface header must call
+  `SurfaceStatusBar()`. It is counted, because two screens overlap during a transition.
+- Every migrated screen except Home and Chat uses `LargeCollapsingTopBar`. Chat uses a single-row
+  `TopAppBar` (`ChatTopBar` in `ChatScreen.kt`) because a chat needs the vertical space.
 
 **Misc**
 - XML comments cannot contain `--`; it fails the manifest merger with an opaque parse error.

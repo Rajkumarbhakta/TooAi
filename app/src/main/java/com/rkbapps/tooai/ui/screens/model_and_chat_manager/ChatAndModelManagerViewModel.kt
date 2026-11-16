@@ -13,25 +13,57 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.text.isBlank
 
 
 @HiltViewModel
 class ChatAndModelManagerViewModel @Inject constructor(
     private val repository: ChatAndModelManagerRepository,
 ) : ViewModel() {
-    val llmModels = repository.llmModels.stateIn(
+    val searchQuery = repository.searchQuery
+
+    val llmModels = repository.llmModels
+        .combine(searchQuery){ models,query ->
+            if (query.isBlank()){
+                models
+            }else{
+                models.filter {
+                    it.displayName.contains(query, ignoreCase = true) ||
+                    it.name.contains(query, ignoreCase = true)
+                }
+            }
+        }.stateIn(
         viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
 
-    val chatSessions = repository.chatSessions.stateIn(
+    val chatSessions = repository.chatSessions
+        .combine(searchQuery){chats,query ->
+            if (query.isBlank()) chats
+            else chats.filter {
+                it.title.contains(query, ignoreCase = true)
+            }
+
+        }
+        .stateIn(
         viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
+
+    val chatPreviews = repository.chatPreviews.stateIn(
+        viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyMap()
+    )
+
+
+    fun search(query: String) = repository.search(query)
 
 
     fun importModel(
@@ -67,6 +99,9 @@ class ChatAndModelManagerViewModel @Inject constructor(
         }
     }
 
+    suspend fun countChatsUsingModel(modelId: Long): Int =
+        withContext(Dispatchers.IO) { repository.countChatsUsingModel(modelId) }
+
     fun deleteModel(model: LlmModel){
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteModel(model = model)
@@ -76,6 +111,12 @@ class ChatAndModelManagerViewModel @Inject constructor(
     fun deleteChat(chatSeason: ChatSession){
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteChatSeason(chatSeason)
+        }
+    }
+
+    fun exportChat(chatSeason: ChatSession, onReady: (String) -> Unit) {
+        viewModelScope.launch {
+            onReady(withContext(Dispatchers.IO) { repository.getChatTranscript(chatSeason) })
         }
     }
 

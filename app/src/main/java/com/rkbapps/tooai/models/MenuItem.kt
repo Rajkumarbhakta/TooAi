@@ -13,28 +13,28 @@ data class MenuItem(
 
 val docScanner = MenuItem(
     title = "Doc Scanner",
-    subtitle = "Scan document with ease.",
+    subtitle = "Scan pages into clean PDFs",
     icon = R.drawable.document_scanner,
     navigationEntry = NavigationEntry.DocScanner
 )
 
 val qrScanner = MenuItem(
     title = "QR Scanner",
-    subtitle = "Scan barcode and QR codes.",
+    subtitle = "Read any code, keep a history",
     icon = R.drawable.qr_code_scanner,
     navigationEntry = NavigationEntry.BarcodeScan
 )
 
 val imageSegmentation = MenuItem(
-    title = "Image Segmentation",
-    subtitle = "Remove image background with one click.",
+    title = "Background Remover",
+    subtitle = "Cut out any subject in a tap",
     icon = R.drawable.image_segmentation,
     navigationEntry = NavigationEntry.ImageSegmentation
 )
 
 val textRecognition = MenuItem(
     title = "Text Recognition",
-    subtitle = "Extract text from image.",
+    subtitle = "Turn photos into editable text",
     icon = R.drawable.text_recognation,
     navigationEntry = NavigationEntry.TextRecognization
 )
@@ -42,7 +42,7 @@ val aiChat = MenuItem(
     title = "Ai Chat",
     subtitle = "Chat with local LLM models.",
     icon = R.drawable.chatbot,
-    navigationEntry = NavigationEntry.ChatAndModelManagement
+    navigationEntry = NavigationEntry.ChatAndModelManagement()
 )
 
 val menuItems =

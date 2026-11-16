@@ -8,7 +8,7 @@ object ModelConfigs {
 
     const val DEFAULT_TOP_K = 64
     const val MIN_TOP_K = 5
-    const val MAX_TOP_K = 40
+    const val MAX_TOP_K = 64
 
     const val DEFAULT_TOP_P = 0.9
     const val MIN_TOP_P = 0.0

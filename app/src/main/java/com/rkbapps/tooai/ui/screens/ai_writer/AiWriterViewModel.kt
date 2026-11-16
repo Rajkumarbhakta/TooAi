@@ -39,6 +39,14 @@ class AiWriterViewModel @Inject constructor(
         .getBooleanPreference(PreferenceManager.IS_DARK_THEME, false)
         .stateIn(viewModelScope, SharingStarted.Lazily, false)
 
+    val isDynamicColor = preferenceManager
+        .getBooleanPreference(PreferenceManager.IS_DYNAMIC_COLOR, true)
+        .stateIn(viewModelScope, SharingStarted.Lazily, true)
+
+    val accentColor = preferenceManager
+        .getStringPreference(PreferenceManager.ACCENT_COLOR)
+        .stateIn(viewModelScope, SharingStarted.Lazily, null)
+
     /**
      * Frees the native handles after the decode coroutine has unwound. Separate from
      * [viewModelScope] because it must outlive the ViewModel — see [dismiss].
@@ -215,7 +223,7 @@ class AiWriterViewModel @Inject constructor(
             val activeEngine = ensureEngine(model) ?: return@launch
 
             releaseConversation()
-            val newConversation = repository.newConversation(activeEngine, sampler)
+            val newConversation = repository.newConversation(activeEngine, model, sampler)
                 .getOrElse { error ->
                     _state.update {
                         it.copy(stage = AiWriterState.Stage.Error(error.readableMessage()))

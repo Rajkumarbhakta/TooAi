@@ -35,7 +35,10 @@ object DatabaseModule {
             Database.MIGRATION_1_2,
             Database.MIGRATION_2_3,
             Database.MIGRATION_3_4,
-            Database.MIGRATION_4_5
+            Database.MIGRATION_4_5,
+            Database.MIGRATION_5_6,
+            Database.MIGRATION_6_7,
+            Database.MIGRATION_7_8
         ).build()
     }
 

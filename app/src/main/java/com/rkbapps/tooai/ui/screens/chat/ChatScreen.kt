@@ -1,7 +1,12 @@
 package com.rkbapps.tooai.ui.screens.chat
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,50 +15,75 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.BottomAppBarDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -63,150 +93,137 @@ import com.halilibo.richtext.commonmark.Markdown
 import com.halilibo.richtext.ui.material3.RichText
 import com.rkbapps.tooai.R
 import com.rkbapps.tooai.db.entity.LlmModel
-import com.rkbapps.tooai.ui.composabels.TopBar
+import com.rkbapps.tooai.navigation.NavigationEntry
+import com.rkbapps.tooai.ui.theme.SurfaceStatusBar
+import com.rkbapps.tooai.ui.theme.ToolShapes
+import com.rkbapps.tooai.ui.theme.toolPalette
+import com.rkbapps.tooai.utils.ModelBackend
 import com.rkbapps.tooai.utils.PredefinePrompts
 import com.rkbapps.tooai.utils.Prompts
 import com.rkbapps.tooai.utils.TypeOfPrompt
 import com.rkbapps.tooai.utils.copyText
 import com.rkbapps.tooai.utils.roundTo2Decimals
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     backStack: SnapshotStateList<Any>,viewModel: ChatViewModel = hiltViewModel(),
 ) {
+    SurfaceStatusBar()
+
     val state by viewModel.chatState.collectAsStateWithLifecycle()
     val llmModels by viewModel.llmModels.collectAsStateWithLifecycle()
     var messageText by remember { mutableStateOf("") }
 
     // Bottom sheet state
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
     var showModelSheet by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     // prompt sheet
     var showPromptSheet by remember { mutableStateOf(false) }
-    val promptSheetState = rememberModalBottomSheetState()
+    val promptSheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    val modelName = state.llmModel?.displayName
+    val isLoadingModel = state.modelInitializingStatus.isLoading
+    val isModelReady = state.instance != null
+    // Switching is only offered while nothing is loading or generating. A load can't be
+    // interrupted, and a model can't be freed under a running reply.
+    val canSwitchModel = !isLoadingModel && !state.isChatRunning && llmModels.isNotEmpty()
+
+    // Where the model actually loaded. Until it has, the chip shows what was asked for.
+    val chosenBackend = ModelBackend.of(state.llmModel?.backend)
+    val backend = state.instance?.backend ?: chosenBackend
+    val context = LocalContext.current
+    // Keyed on the engine, so it is said once per load and not again on each rebuilt conversation.
+    LaunchedEffect(state.instance?.engine) {
+        if (state.instance != null && chosenBackend == ModelBackend.GPU && backend == ModelBackend.CPU) {
+            Toast.makeText(context, "GPU isn't available for this model here. Running on CPU.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // The list is reversed, so index 0 is the newest message, at the bottom. Compose keeps the
+    // message being looked at in place when one is added, which leaves a new message below the
+    // visible area. Messages are only added by sending, so the list goes to the bottom then.
+    // A reply growing at the bottom needs nothing: at offset 0 the list stays pinned to it,
+    // and a reader who has scrolled up is left where they are.
+    val listState = rememberLazyListState()
+    val messageCount = state.messages.size
+    var followedCount by rememberSaveable { mutableIntStateOf(messageCount) }
+    LaunchedEffect(messageCount) {
+        if (messageCount > followedCount) listState.scrollToItem(0)
+        followedCount = messageCount
+    }
+    val isAtLatest by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 48
+        }
+    }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopBar(
-                title = {
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(100.dp))
-                            .background(
-                                color = Color.White.copy(alpha = 0.2f)
-                            )
-                            .clickable { showModelSheet = true }
-                            .padding(8.dp)
-                        ,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            state.llmModel?.displayName?:"Chat", style = MaterialTheme.typography.titleMedium,
-                            overflow = TextOverflow.MiddleEllipsis,
-                            maxLines = 1
-                        )
-                        if (state.llmModel!=null){
-                            Icon(
-                                painter = painterResource(R.drawable.arrow_drop_down),
-                                contentDescription = "ChangeModel"
-                            )
-                        }
-                    }
-                }
-            ) {
-                backStack.removeLastOrNull()
-            }
+            ChatTopBar(
+                title = state.sessionTitle ?: "Chat",
+                scrollBehavior = scrollBehavior,
+                onNavigationIconClick = { backStack.removeLastOrNull() },
+                modelChip = {
+                    ModelChip(
+                        label = when {
+                            isLoadingModel -> "Loading${modelName?.let { " $it" }.orEmpty()}…"
+                            modelName == null -> "Choose model"
+                            else -> "$modelName · ${backend.label}"
+                        },
+                        isReady = isModelReady,
+                        enabled = canSwitchModel,
+                        onClick = { showModelSheet = true }
+                    )
+                },
+                newChatEnabled = isModelReady && !isLoadingModel && !state.isChatRunning &&
+                        state.messages.isNotEmpty(),
+                onNewChat = viewModel::startNewChat
+            )
         },
         bottomBar = {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
-                    .background(color = MaterialTheme.colorScheme.secondaryContainer)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(BottomAppBarDefaults.windowInsets.asPaddingValues())
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    TextField(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp, max = 120.dp)
-                            .padding(bottom = 10.dp),
-                        value = messageText,
-                        onValueChange = { messageText = it },
-                        placeholder = { Text("Ask tooai") },
-                        shape = RoundedCornerShape(100.dp),
-                        trailingIcon = {
-                            when{
-                                state.modelInitializingStatus.isLoading && state.instance == null ->{
-                                    Box(
-                                        modifier = Modifier.size(24.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 3.dp
-                                        )
-                                    }
-                                }
-                                state.isChatRunning ->{
-                                    Box(
-                                        modifier = Modifier.size(24.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 3.dp
-                                        )
-                                    }
-                                }
-                                else->{
-                                    FilledIconButton(
-                                        onClick = {
-                                            if (messageText.isNotBlank()) {
-                                                viewModel.sendMessage(messageText)
-                                                messageText = ""
-                                            }
-                                        }
-                                    ) {
-                                        Icon(painter = painterResource(R.drawable.send),"Send message")
-                                    }
-                                }
+            ChatComposer(
+                messageText = messageText,
+                onMessageChange = { messageText = it },
+                placeholder = modelName?.let { "Message $it" } ?: "Message",
+                isLoadingModel = isLoadingModel,
+                isModelReady = isModelReady,
+                isGenerating = state.isChatRunning,
+                selectedPrompt = state.currentPromptType,
+                onClearPrompt = { viewModel.selectAPredefinePrompt(null) },
+                onShowPrompts = { showPromptSheet = true },
+                onSend = {
+                    viewModel.sendMessage(messageText)
+                    messageText = ""
+                },
+                onStop = viewModel::stopGeneration,
+                notice = if (!isLoadingModel && !isModelReady) {
+                    {
+                        ModelNotice(
+                            message = state.modelInitializingStatus.error
+                                ?: if (state.modelUnavailable) {
+                                    "This chat's model is no longer on this device."
+                                } else {
+                                    "No model is loaded."
+                                },
+                            hasModels = llmModels.isNotEmpty(),
+                            onChooseModel = { showModelSheet = true },
+                            onImportModel = {
+                                backStack.add(NavigationEntry.ChatAndModelManagement(initialPage = MODELS_PAGE))
                             }
-
-                        },
-                        colors = TextFieldDefaults.colors(
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            disabledIndicatorColor = Color.Transparent
                         )
-                    )
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp,),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Always available, so the sheet can be reopened to swap the active
-                        // prompt instead of having to clear it first.
-                        Icon(
-                            painter = painterResource(R.drawable.tune),
-                            contentDescription = "Prompt suggestions",
-                            modifier = Modifier.clickable{showPromptSheet = true}
-                        )
-                        state.currentPromptType?.let { prompt->
-                            PromptChip(prompt = prompt, showClose = true) {
-                                viewModel.selectAPredefinePrompt(null)
-                            }
-                        }
                     }
+                } else {
+                    null
                 }
-            }
-        }
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.surface
     ) {innerPadding->
 
         // Bottom Sheet for model selection
@@ -217,15 +234,10 @@ fun ChatScreen(
                 selectedModel = state.llmModel,
                 onSheetDismiss = { showModelSheet = false  },
             ){model ->
-                state.sessionId?.let { sessionId ->
-                    viewModel.loadSession(
-                        sessionId = sessionId,
-                        modelId = model.id
-                    )
-                    scope.launch {
-                        sheetState.hide()
-                        showModelSheet = false
-                    }
+                viewModel.switchModel(model.id)
+                scope.launch {
+                    sheetState.hide()
+                    showModelSheet = false
                 }
             }
         }
@@ -251,40 +263,60 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp)
         ) {
-            if (state.modelInitializingStatus.isLoading) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            if (isLoadingModel && state.messages.isNotEmpty()) {
+                LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
 
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(bottom = 8.dp),
-                reverseLayout = true
-            ) {
-                item {
-                    Spacer(modifier = Modifier.size(8.dp))
-                }
-                items(
-                    state.messages.reversed(),
-                    key = { it.id }
-                ) { message ->
-                    when(message.type){
-                        ChatType.CHAT -> {
-                            ChatMessageItem(
-                                modifier = Modifier.padding(start = 30.dp),
-                                message = message,
-                                alignment = Alignment.End,
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                            )
+            if (state.messages.isEmpty()) {
+                ChatEmptyState(
+                    modifier = Modifier.weight(1f),
+                    isLoading = isLoadingModel,
+                    modelName = modelName
+                )
+            } else {
+                Box(modifier = Modifier.weight(1f)) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        state = listState,
+                        reverseLayout = true,
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.Bottom)
+                    ) {
+                        items(
+                            state.messages.reversed(),
+                            key = { it.id }
+                        ) { message ->
+                            when(message.type){
+                                ChatType.CHAT -> UserMessageItem(message = message)
+                                ChatType.ASSISTANT -> AssistantMessageItem(
+                                    message = message,
+                                    // The model that wrote this reply, not the one loaded now.
+                                    modelName = message.modelName,
+                                    isGenerating = state.isChatRunning &&
+                                            message.id == state.messages.last().id
+                                )
+                            }
                         }
-                        ChatType.ASSISTANT -> {
-                            ChatMessageItem(
-                                modifier = Modifier.padding(end = 30.dp),
-                                message = message,
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                alignment = Alignment.Start
+                    }
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = !isAtLatest,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 8.dp),
+                        enter = fadeIn() + scaleIn(),
+                        exit = fadeOut() + scaleOut()
+                    ) {
+                        SmallFloatingActionButton(
+                            onClick = { scope.launch { listState.animateScrollToItem(0) } },
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        ) {
+                            // The forward arrow turned to point down.
+                            Icon(
+                                painter = painterResource(R.drawable.arrow_forward),
+                                contentDescription = "Jump to latest message",
+                                modifier = Modifier.rotate(90f)
                             )
                         }
                     }
@@ -295,143 +327,482 @@ fun ChatScreen(
 
 }
 
+// Library's tabs: 0 is Chats, 1 is Models.
+private const val MODELS_PAGE = 1
+
+// A chat needs the vertical space, so it keeps a single-row bar rather than the large
+// collapsing one the other migrated screens use.
 @Composable
-fun ChatMessageItem(
-    modifier: Modifier = Modifier,
-    message: ChatMessage,
-    alignment: Alignment.Horizontal,
-    color: Color,
+private fun ChatTopBar(
+    title: String,
+    scrollBehavior: TopAppBarScrollBehavior,
+    onNavigationIconClick: () -> Unit,
+    modelChip: (@Composable () -> Unit)?,
+    newChatEnabled: Boolean,
+    onNewChat: () -> Unit
 ) {
-    val context = LocalContext.current
-    var isStatsVisible by remember { mutableStateOf(false) }
-    var isExpanded by remember { mutableStateOf(false) }
+    val titleContent: @Composable () -> Unit = {
+        Text(
+            text = title,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+    val navigationIcon: @Composable () -> Unit = {
+        IconButton(onClick = onNavigationIconClick) {
+            Icon(
+                painter = painterResource(R.drawable.arrow_back),
+                contentDescription = "navigation up"
+            )
+        }
+    }
+    val actions: @Composable RowScope.() -> Unit = {
+        FilledTonalIconButton(
+            onClick = onNewChat,
+            enabled = newChatEnabled,
+            modifier = Modifier.size(48.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        ) {
+            Icon(painter = painterResource(R.drawable.add), "New chat")
+        }
+    }
+    val colors = TopAppBarDefaults.topAppBarColors(
+        containerColor = MaterialTheme.colorScheme.surface,
+        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+    )
 
-    val prompt =  getPromptTypeIfApplied(message.message)
-    val isPromptApplied = prompt!=null
+    if (modelChip != null) {
+        TopAppBar(
+            title = titleContent,
+            subtitle = modelChip,
+            navigationIcon = navigationIcon,
+            actions = actions,
+            expandedHeight = 80.dp,
+            colors = colors,
+            scrollBehavior = scrollBehavior
+        )
+    } else {
+        TopAppBar(
+            title = titleContent,
+            navigationIcon = navigationIcon,
+            actions = actions,
+            colors = colors,
+            scrollBehavior = scrollBehavior
+        )
+    }
+}
 
+@Composable
+private fun ModelChip(
+    label: String,
+    isReady: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    ) {
+        Row(
+            modifier = Modifier
+                .heightIn(min = 32.dp)
+                .padding(start = 8.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(
+                        color = if (isReady) {
+                            MaterialTheme.toolPalette.qr.action
+                        } else {
+                            MaterialTheme.colorScheme.outline
+                        },
+                        shape = CircleShape
+                    )
+            )
+            Text(
+                text = label,
+                modifier = Modifier.weight(1f, fill = false),
+                style = MaterialTheme.typography.labelMediumEmphasized,
+                maxLines = 1,
+                overflow = TextOverflow.MiddleEllipsis
+            )
+            Icon(
+                painter = painterResource(R.drawable.arrow_drop_down),
+                contentDescription = "Change model",
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
 
-    
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ChatEmptyState(
+    modifier: Modifier = Modifier,
+    isLoading: Boolean,
+    modelName: String?
+) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(4.dp),
-        horizontalAlignment = alignment,
-        verticalArrangement = Arrangement.spacedBy(5.dp)
+            .padding(32.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Card(
-            onClick = {
-                if (message.type == ChatType.ASSISTANT){
-                    isExpanded = !isExpanded
-                }
-                isStatsVisible = false
-            },
-            colors = CardDefaults.cardColors(containerColor = color)
-        ) {
-            if (isPromptApplied){
-                PromptChip(
-                    prompt = Prompts(type = prompt, subType = "", prompt = ""),
-                    showClose = false
-                ) { }
-            }
-
-            if (message.isResponding){
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .size(24.dp),
-                    strokeWidth = 3.dp
+        // Model problems are shown above the composer, so they stay visible with or without history.
+        when {
+            isLoading -> {
+                ContainedLoadingIndicator(modifier = Modifier.size(64.dp))
+                Text(
+                    text = "Warming up the model…",
+                    style = MaterialTheme.typography.titleMediumEmphasized
                 )
-            }else{
-                RichText(
-                    modifier = Modifier
-                        .background(color)
-                        .padding(8.dp),
-                ){
-                    if (isPromptApplied){
-                        val updatedMessage = removePromptIfApplied(message.message)
-                        Markdown(content = updatedMessage)
-                    }else{
-                        Markdown(content = message.message)
-                    }
-                }
             }
-        }
-
-        AnimatedVisibility(
-            visible = message.statistics!=null && isExpanded
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                //show stats button
+            else -> {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(100.dp))
-                        .background(color = MaterialTheme.colorScheme.primaryContainer)
-                        .clickable {
-                            isStatsVisible = !isStatsVisible
-                        }
-                        .padding(10.dp)
-                ){
-                    Text(
-                        if (isStatsVisible)  "Hide stats"
-                        else "Show stats"
-                        , style = MaterialTheme.typography.labelSmall)
-                }
-                // copy button
-                ChatActionButtons(
-                    icon = R.drawable.content_copy,
-                    title = "Copy"
+                        .size(72.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = ToolShapes.AiChat.toShape()
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    context.copyText(message.message)
+                    Icon(
+                        painter = painterResource(R.drawable.chatbot),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(36.dp)
+                    )
                 }
-                //share button
-                ChatActionButtons(
-                    icon = R.drawable.share,
-                    title = "Share"
-                ){
-                    Intent(Intent.ACTION_SEND).apply {
-                        putExtra(Intent.EXTRA_TEXT, message.message)
-                        type = "text/plain"
-                    }.also {
-                        context.startActivity(it)
-                    }
+                Text(
+                    text = "Start a conversation",
+                    style = MaterialTheme.typography.titleMediumEmphasized
+                )
+                modelName?.let {
+                    Text(
+                        text = "$it runs entirely on this device.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ChatComposer(
+    messageText: String,
+    onMessageChange: (String) -> Unit,
+    placeholder: String,
+    isLoadingModel: Boolean,
+    isModelReady: Boolean,
+    isGenerating: Boolean,
+    selectedPrompt: Prompts?,
+    onClearPrompt: () -> Unit,
+    onShowPrompts: () -> Unit,
+    onSend: () -> Unit,
+    onStop: () -> Unit,
+    notice: (@Composable () -> Unit)?
+) {
+    val fieldColor = MaterialTheme.colorScheme.surfaceContainerHigh
+
+    Surface(color = MaterialTheme.colorScheme.surface) {
+        Column(
+            modifier = Modifier
+                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+                .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            notice?.invoke()
+            selectedPrompt?.let { prompt ->
+                PromptChip(prompt = prompt, showClose = true, onClick = onClearPrompt)
+            }
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TextField(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 56.dp, max = 120.dp),
+                    value = messageText,
+                    onValueChange = onMessageChange,
+                    placeholder = {
+                        Text(text = placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
+                    shape = RoundedCornerShape(28.dp),
+                    trailingIcon = {
+                        // Always available, so the sheet can be reopened to swap the active
+                        // prompt instead of having to clear it first.
+                        IconButton(onClick = onShowPrompts) {
+                            Icon(
+                                painter = painterResource(R.drawable.tune),
+                                contentDescription = "Prompt suggestions"
+                            )
+                        }
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = fieldColor,
+                        unfocusedContainerColor = fieldColor,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent
+                    )
+                )
+                // Without a loaded model the message would be cleared and never sent.
+                val canSend = isModelReady && !isLoadingModel && !isGenerating && messageText.isNotBlank()
+                FilledIconButton(
+                    onClick = if (isGenerating) onStop else onSend,
+                    enabled = isGenerating || canSend,
+                    modifier = Modifier.size(56.dp),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    when {
+                        isLoadingModel -> LoadingIndicator(modifier = Modifier.size(36.dp))
+                        isGenerating -> Icon(
+                            painter = painterResource(R.drawable.stop),
+                            contentDescription = "Stop generating"
+                        )
+                        else -> Icon(
+                            painter = painterResource(R.drawable.send),
+                            contentDescription = "Send message"
+                        )
+                    }
+                }
+            }
+            Text(
+                text = "Runs offline on this device · AI can make mistakes",
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+// Shown above the composer while the chat has no usable model.
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ModelNotice(
+    message: String,
+    hasModels: Boolean,
+    onChooseModel: () -> Unit,
+    onImportModel: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = message,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            FilledTonalButton(
+                onClick = if (hasModels) onChooseModel else onImportModel,
+                shapes = ButtonDefaults.shapes()
+            ) {
+                Text(if (hasModels) "Choose model" else "Import a model")
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserMessageItem(message: ChatMessage) {
+    val prompt = getPromptTypeIfApplied(message.message)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 48.dp),
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        prompt?.let {
+            PromptChip(
+                prompt = Prompts(type = it, subType = "", prompt = ""),
+                showClose = false
+            ) { }
+        }
+        Surface(
+            shape = RoundedCornerShape(
+                topStart = 24.dp,
+                topEnd = 24.dp,
+                bottomEnd = 6.dp,
+                bottomStart = 24.dp
+            ),
+            color = MaterialTheme.colorScheme.primary
+        ) {
+            Text(
+                text = removePromptIfApplied(message.message),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun AssistantMessageItem(
+    message: ChatMessage,
+    modelName: String?,
+    isGenerating: Boolean
+) {
+    if (isGenerating && message.message.isEmpty()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            ContainedLoadingIndicator(modifier = Modifier.size(48.dp))
+            Text(
+                text = "Thinking…",
+                style = MaterialTheme.typography.titleSmallEmphasized
+            )
+        }
+        return
+    }
+
+    val context = LocalContext.current
+    var isStatsVisible by remember { mutableStateOf(false) }
+    val statistics = message.statistics
+    val statsSummary = statistics?.let {
+        listOfNotNull(
+            it.decodeSpeed?.let { speed -> "${speed.roundTo2Decimals()} tok/s" },
+            it.tokenUsed?.let { tokens -> "$tokens tokens" }
+        ).joinToString(" · ")
+    }.orEmpty()
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        modelName?.let {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier.size(24.dp)
+                        .background(
+                           color = MaterialTheme.colorScheme.primary,
+                           shape = ToolShapes.AiChat.toShape()
+                        ) ,
+                )
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.labelLargeEmphasized,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        SelectionContainer {
+            RichText {
+                Markdown(content = message.message)
+            }
+        }
+
+        if (!isGenerating) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = statsSummary,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(enabled = statsSummary.isNotEmpty()) {
+                            isStatsVisible = !isStatsVisible
+                        },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                IconButton(onClick = { context.copyText(message.message) }) {
+                    Icon(
+                        painter = painterResource(R.drawable.content_copy),
+                        contentDescription = "Copy",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        Intent(Intent.ACTION_SEND).apply {
+                            putExtra(Intent.EXTRA_TEXT, message.message)
+                            type = "text/plain"
+                        }.also {
+                            context.startActivity(it)
+                        }
+                    }
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.share),
+                        contentDescription = "Share",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+
         AnimatedVisibility(
             visible = isStatsVisible
         ) {
-            Card{
+            Surface(
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainer
+            ) {
                 Row {
-                    if (message.statistics?.tokenUsed!=null){
+                    if (statistics?.tokenUsed!=null){
                         StatsItem(
                             title = "Token\nused",
-                            value = message.statistics.tokenUsed.toString(),
+                            value = statistics.tokenUsed.toString(),
                             unit = ""
                         )
                     }
 
-                    if (message.statistics?.timeToFirstToken!=null){
+                    if (statistics?.timeToFirstToken!=null){
                         StatsItem(
                             title = "1st token",
-                            value = message.statistics.timeToFirstToken.roundTo2Decimals().toString(),
+                            value = statistics.timeToFirstToken.roundTo2Decimals().toString(),
                             unit = "sec"
                         )
                     }
-                    if (message.statistics?.prefillSpeed!=null){
+                    if (statistics?.prefillSpeed!=null){
                         StatsItem(
                             title = "Prefill speed",
-                            value = message.statistics.prefillSpeed.roundTo2Decimals().toString(),
+                            value = statistics.prefillSpeed.roundTo2Decimals().toString(),
                             unit = "tokens/s"
                         )
                     }
-                    if (message.statistics?.totalLatency!=null){
+                    if (statistics?.totalLatency!=null){
                         StatsItem(
                             title = "Latency",
-                            value = message.statistics.totalLatency.roundTo2Decimals().toString(),
+                            value = statistics.totalLatency.roundTo2Decimals().toString(),
                             unit = "sec"
                         )
                     }
@@ -467,16 +838,30 @@ fun PromptChip(
     showClose: Boolean,
     onClick: () -> Unit
     ) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(color = MaterialTheme.colorScheme.primary)
-            .clickable(onClick = onClick)
-            .padding(4.dp)
+    val label = prompt.type.displayString + (if(prompt.subType.isNotBlank())" : ${prompt.subType}" else "")
+    Surface(
+        modifier = modifier,
+        onClick = onClick,
+        enabled = showClose,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
     ){
-        Text(prompt.type.displayString + (if(prompt.subType.isNotBlank())" : ${prompt.subType}" else ""), color = MaterialTheme.colorScheme.onPrimary)
-        if (showClose)
-        Icon(painter = painterResource(R.drawable.close),"", tint = MaterialTheme.colorScheme.onPrimary)
+        Row(
+            modifier = Modifier
+                .heightIn(min = 32.dp)
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(label, style = MaterialTheme.typography.labelLargeEmphasized)
+            if (showClose)
+            Icon(
+                painter = painterResource(R.drawable.close),
+                contentDescription = "Remove prompt",
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 }
 
@@ -509,7 +894,7 @@ fun ChatPromptSuggestionSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         "Prompt suggestions",
-                        style = MaterialTheme.typography.headlineSmall
+                        style = MaterialTheme.typography.headlineSmallEmphasized
                     )
                     Text(
                         "Added in front of your next message",
@@ -533,7 +918,7 @@ fun ChatPromptSuggestionSheet(
                     item(key = "header-${type.name}") {
                         Text(
                             text = type.displayString,
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.titleSmallEmphasized,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(top = 16.dp, bottom = 2.dp)
                         )
@@ -567,14 +952,13 @@ private fun PromptSuggestionItem(
         else MaterialTheme.colorScheme.surfaceContainerHighest
     )
 
-    Card(
+    Surface(
         modifier = modifier.fillMaxWidth(),
         onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = containerColor,
-            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-            else MaterialTheme.colorScheme.onSurface
-        )
+        shape = MaterialTheme.shapes.large,
+        color = containerColor,
+        contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+        else MaterialTheme.colorScheme.onSurface
     ) {
         Row(
             modifier = Modifier
@@ -629,32 +1013,6 @@ fun StatsItem(
 }
 
 @Composable
-fun ChatActionButtons(
-    modifier: Modifier = Modifier,
-    icon:Int,
-    title: String,
-    onClick: () -> Unit
-){
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(100.dp))
-            .background(color = MaterialTheme.colorScheme.primaryContainer)
-            .clickable(onClick = onClick)
-            .padding(10.dp),
-        verticalAlignment = Alignment.CenterVertically
-        , horizontalArrangement = Arrangement.spacedBy(5.dp)
-    ){
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = title,
-            modifier = Modifier.size(10.dp)
-        )
-        Text(title, style = MaterialTheme.typography.labelSmall)
-    }
-}
-
-
-@Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun ChatModelSelectionSheet(
     sheetState: SheetState,
@@ -674,8 +1032,8 @@ fun ChatModelSelectionSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                "Available Models",
-                style = MaterialTheme.typography.headlineSmall,
+                "Available models",
+                style = MaterialTheme.typography.headlineSmallEmphasized,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
@@ -708,14 +1066,15 @@ fun ModelListItem(
 ) {
     val color = animateColorAsState(
         if (isSelected) { MaterialTheme.colorScheme.primaryContainer }
-        else { MaterialTheme.colorScheme.secondaryContainer }
+        else { MaterialTheme.colorScheme.surfaceContainerHighest }
     )
-    Card(
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 4.dp),
         onClick = onSelectModel,
-        colors = CardDefaults.cardColors(containerColor = color.value)
+        shape = MaterialTheme.shapes.large,
+        color = color.value
     ) {
         Column(
             modifier = Modifier
@@ -732,7 +1091,7 @@ fun ModelListItem(
                 ) {
                     Text(
                         text = model.displayName,
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleMediumEmphasized
                     )
                 }
                 if (isSelected) {

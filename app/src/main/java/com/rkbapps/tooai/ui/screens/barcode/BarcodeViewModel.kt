@@ -6,9 +6,9 @@ import com.rkbapps.tooai.db.entity.QrScan
 import com.rkbapps.tooai.ui.screens.barcode.BarcodeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -24,11 +24,10 @@ class BarcodeViewModel @Inject constructor(private val repository: BarcodeReposi
         }
     }
 
-    fun addNewQrScan(qrScan: QrScan) {
-        viewModelScope.async(Dispatchers.IO) {
-            repository.addNewQrScan(qrScan)
-        }.let {
-
+    fun addNewQrScan(qrScan: QrScan, onSaved: (Long) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val id = repository.addNewQrScan(qrScan) ?: return@launch
+            withContext(Dispatchers.Main) { onSaved(id) }
         }
     }
 

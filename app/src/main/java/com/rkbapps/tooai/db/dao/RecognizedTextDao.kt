@@ -16,7 +16,7 @@ interface RecognizedTextDao {
     @Delete
     suspend fun deleteRecognizedText(recognizedText: RecognizedText)
 
-    @Query("select * from recognizedtext")
+    @Query("select * from recognizedtext order by timeMillis desc, id desc")
     fun getAllRecognizedText(): Flow<List<RecognizedText>>
 
 }

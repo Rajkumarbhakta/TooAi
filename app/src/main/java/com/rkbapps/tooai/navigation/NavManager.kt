@@ -17,6 +17,7 @@ import com.rkbapps.tooai.ui.screens.home.HomeScreen
 import com.rkbapps.tooai.ui.screens.image_segmentation.ImageSegmentationScreen
 import com.rkbapps.tooai.ui.screens.model_and_chat_manager.ChatAndModelManagerScreen
 import com.rkbapps.tooai.ui.screens.settings.SettingsScreen
+import com.rkbapps.tooai.ui.screens.sticker.StickerEditorScreen
 import com.rkbapps.tooai.ui.screens.text_recognitation.TextReorganizationScreen
 
 @Composable
@@ -63,8 +64,12 @@ fun NavManager(
                 TextReorganizationScreen(backStack)
             }
 
-            entry<NavigationEntry.ChatAndModelManagement> {
-                ChatAndModelManagerScreen(backStack)
+            entry<NavigationEntry.StickerEditor> { key ->
+                StickerEditorScreen(backStack, key.sourcePath)
+            }
+
+            entry<NavigationEntry.ChatAndModelManagement> { key ->
+                ChatAndModelManagerScreen(backStack, key.initialPage)
             }
 
             entry<NavigationEntry.AiChat>{

@@ -12,6 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rkbapps.tooai.db.PreferenceManager
 import com.rkbapps.tooai.ui.screens.ai_writer.AiWriterSheet
 import com.rkbapps.tooai.ui.screens.ai_writer.AiWriterViewModel
+import com.rkbapps.tooai.ui.theme.AccentColor
 import com.rkbapps.tooai.ui.theme.TooAiTheme
 import com.rkbapps.tooai.utils.copyText
 import dagger.hilt.android.AndroidEntryPoint
@@ -58,12 +59,16 @@ class AiWriterActivity : ComponentActivity() {
         setContent {
             val useSystemTheme by viewModel.isSystemTheme.collectAsStateWithLifecycle()
             val darkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+            val dynamicColor by viewModel.isDynamicColor.collectAsStateWithLifecycle()
+            val accentColor by viewModel.accentColor.collectAsStateWithLifecycle()
             val state by viewModel.state.collectAsStateWithLifecycle()
 
             LaunchedEffect(Unit) { viewModel.start(sourceText, canReplace) }
 
             TooAiTheme(
-                darkTheme = if (useSystemTheme) isSystemInDarkTheme() else darkTheme
+                darkTheme = if (useSystemTheme) isSystemInDarkTheme() else darkTheme,
+                dynamicColor = dynamicColor,
+                accentColor = AccentColor.fromName(accentColor)
             ) {
                 AiWriterSheet(
                     state = state,
