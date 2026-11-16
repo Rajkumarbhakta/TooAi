@@ -32,8 +32,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       # compileSdk/targetSdk are 37; don't rely on the runner image shipping it.
+      # v4 or later: v3 installs the `tools` package by default, which Google stopped
+      # serving in September 2026, and the step fails with "Failed to find package 'tools'".
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Read app version
         id: version
