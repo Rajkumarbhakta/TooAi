@@ -1,58 +1,123 @@
+<img alt="TooAi: AI that never leaves your phone" src="screenshots/feature-graphic.png" width="100%"/>
+
 # TooAi
 
-A powerful, offline-first Android application built with Jetpack Compose, using Google ML Kit and
-LiteRT-LM to bring advanced machine learning features directly to your device.
+**AI that never leaves your phone.** TooAi is an offline-first Android toolkit: chat with a language
+model running on your own device, rewrite text in any app, and scan, read and cut out images with
+on-device machine learning.
 
-Everything runs locally — there is no account, no ads, no analytics, and nothing you type or scan is
-uploaded to a server.
+There is no account, no ads and no analytics, and nothing you type or scan is uploaded to a server.
+
+[![Release](https://img.shields.io/github/v/release/Rajkumarbhakta/TooAi)](https://github.com/Rajkumarbhakta/TooAi/releases/latest)
+![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/License-MIT-5847C8.svg)](LICENSE)
+
+**[Download the latest APK](https://github.com/Rajkumarbhakta/TooAi/releases/latest)**
+
+<p align="center">
+  <img alt="AI that never leaves your phone" src="screenshots/01-home-private-ai.png" width="24%"/>
+  <img alt="Chat with AI, fully offline" src="screenshots/02-ai-chat-offline.png" width="24%"/>
+  <img alt="Rewrite text in any app" src="screenshots/03-ai-writer-any-app.png" width="24%"/>
+  <img alt="Polish, summarize, proofread" src="screenshots/04-ai-writer-polish.png" width="24%"/>
+</p>
+<p align="center">
+  <img alt="Bring your own models" src="screenshots/05-model-library.png" width="24%"/>
+  <img alt="Remove any background" src="screenshots/06-background-remover.png" width="24%"/>
+  <img alt="Turn photos into stickers" src="screenshots/07-sticker-maker.png" width="24%"/>
+  <img alt="Copy text from any photo" src="screenshots/08-text-recognition.png" width="24%"/>
+</p>
 
 # Features
 
-- **Run LLM models on device**: Chat offline with large language models you import yourself
-  (requires Android 12+).
-- **AI Writer**: Rewrite, summarize or proofread selected text in *any* app, from the text-selection
-  menu.
-- **Document Scan**: Scan physical documents with the camera and save them as shareable PDFs.
-- **Text Recognition**: Extract text from images, including Devanagari script.
-- **Barcode/QR Code Scan**: Scan and decode barcodes and QR codes, with a searchable local history.
-- **Image Segmentation**: Remove the background from any image and save the cutout.
+### AI Chat, fully offline
 
-*Note: all inference happens on the device. Language models are supplied by you and never leave the
-phone. The scanner, barcode and segmentation features use Google Play Services on-device ML modules,
-which are fetched once and then run offline.*
+Import a model file and chat with it entirely on the device. TooAi runs on LiteRT-LM, so small open
+models such as Gemma 3 and Qwen2.5 answer straight from the phone, even in airplane mode.
 
-# AI Writer
+- Markdown replies with lists, headings and code
+- Switch models mid-conversation; each reply keeps the name of the model that wrote it
+- Long chats stay coherent: older turns are carried into a fresh context by token budget
+- Search, rename or export chats as text
 
-`AiWriterActivity` registers for `ACTION_PROCESS_TEXT`, so TooAi appears in the text-selection
-toolbar of every app on the device. Select text anywhere, tap **TooAi**, and pick an action:
+### AI Writer: rewrite text in any app
 
-| Page      | Options                                     |
-|-----------|---------------------------------------------|
-| Polish    | Formal · Casual · Friendly                  |
-| Summarize | Bullet points · Short paragraph · Concise   |
-| Proofread | Grammar · Clarity · Concise                 |
-| Prompt    | Free-form instruction, selection as context |
+Select text in any app (email, chat, notes, browser), tap **AI Writer** in the selection menu, and
+rewrite it on the spot.
 
-When the host app allows editing, **Replace** writes the result straight back into the field.
-`ACTION_SEND` is registered as a share-sheet fallback for read-only cases.
+| Page      | Options                                         |
+|-----------|-------------------------------------------------|
+| Polish    | Formal · Casual · Friendly                      |
+| Summarize | Bullet points · Short paragraph · Concise       |
+| Proofread | Grammar · Clarity · Concise                     |
+| Prompt    | Free-form instruction, selection as context     |
 
-The writer keeps its own repository and never touches the chat database, so rewriting text from
-another app cannot create chat sessions.
+Regenerate or change the tone to get another version and flip between them. When the host app allows
+editing, **Replace** writes the result straight back into the field. The share sheet works as a
+read-only fallback.
 
-> On Samsung One UI the text-selection entry is gated behind an opt-in list in
-> **Settings → General management → TooAi**. On stock Android it appears automatically, once the app
-> has been launched at least once after install.
+### Bring your own models
+
+- Import any `.task` or `.litertlm` file
+- Run each model on CPU or GPU, with an automatic fallback to CPU if the GPU path fails
+- Tune max tokens, temperature, Top-K and Top-P per model
+
+### Background remover
+
+Pick or take a photo and TooAi cuts out the subject in a tap. Compare with the before/after slider,
+put it on a transparent, white, pink or blue backdrop, then save as PNG or share. No watermark.
+
+### Sticker maker
+
+Turn any cut-out into a sticker: add captions and emoji, wrap it in an outline, and undo any step.
+Copy, share or save it as a 512 × 512 WebP under 100 KB.
+
+### Text recognition
+
+Pull the text out of any photo or screenshot with on-device OCR, then copy or share it in one tap.
+Past results stay in a searchable history.
+
+### Document scanner
+
+Scan documents and receipts with automatic edge detection, or import pages from the gallery. Every
+scan is saved as a shareable PDF.
+
+### QR & barcode scanner
+
+Scan QR codes and barcodes and keep a local, searchable history of links, Wi-Fi codes, contacts and
+product codes.
+
+### Built for privacy
+
+- Every AI feature runs on the device
+- No sign-up, no ads, no analytics, no in-app purchases
+- No camera or storage permission: photos come from the system camera and Android's photo picker
+- Chats, scans and history stay in a local database
+
+### Material 3 Expressive
+
+Light, dark or system theme, with an Indigo, Teal, Amber or Rose accent, or Material You colours
+from the wallpaper on Android 12+.
 
 # Requirements
 
-- Android 8.0 (API 26) or newer for the scanning, OCR and segmentation tools
-- Android 12 (API 31) or newer for on-device LLM chat and the AI Writer
+- Android 8.0 (API 26) or newer for the scanners, text recognition, background remover and stickers
+- Android 12 (API 31) or newer for AI Chat and the AI Writer
 - A `.task` or `.litertlm` model file, imported from **Models → Import Model**
 
-Models are not bundled with the app. Larger models need more RAM; 1B–2B parameter models are a good
-fit for most phones.
+Models are not bundled with the app, so the download stays small. Bigger models need more RAM:
+1B-parameter models such as Gemma 3 1B suit most phones, while a 1.5B model can be killed for low
+memory on a phone with under 4 GB.
 
-# Getting Started
+The scanner, barcode and background-remover features use Google Play Services on-device ML modules,
+which are fetched once and then run offline.
+
+### AI Writer on Samsung
+
+The selection-menu entry appears once the app has been launched at least once after install. On
+Samsung One UI it is also gated behind an opt-in list in **Settings → General management → TooAi**;
+on stock Android it appears automatically.
+
+# Getting started
 
 ```sh
 ./gradlew :app:assembleDebug
@@ -74,62 +139,40 @@ adb shell "am start -a android.intent.action.PROCESS_TEXT -t text/plain \
   -n com.rkbapps.tooai/.activity.AiWriterActivity"
 ```
 
-# Tech Stack and Libraries
+Every push to `master` with a new `versionName` builds a signed APK and publishes it as a GitHub
+Release.
 
-- [Kotlin](https://kotlinlang.org/) : First class and official programming language for Android
-  development.
-- [Coroutines](https://kotlinlang.org/docs/reference/coroutines-overview.html) : For managing
-  background threads with simplified code and reducing needs for callbacks.
-- [Flow](https://kotlinlang.org/docs/reference/coroutines/flow.html) : A cold asynchronous data
-  stream that sequentially emits values and completes normally or with an exception.
-- [Jetpack]
-    - [Compose](https://developer.android.com/jetpack/compose) : Modern toolkit for building native
-      UI.
-    - [Navigation 3](https://developer.android.com/guide/navigation) : Back-stack driven navigation
-      for Compose.
-    - [ViewModel](https://developer.android.com/topic/libraries/architecture/viewmodel) : Stores
-      UI-related data that isn't destroyed on UI changes.
-    - [Room](https://developer.android.com/topic/libraries/architecture/room) : SQLite object
-      mapping library.
-    - [DataStore](https://developer.android.com/topic/libraries/architecture/datastore) : Typed,
-      asynchronous key-value storage for settings.
-- [Hilt](https://developer.android.com/training/dependency-injection/hilt-android) : Dependency
-  injection library for Android that reduces the boilerplate of doing manual dependency injection in
-  your project.
-- [ML Kit](https://developers.google.com/ml-kit) : A mobile SDK that brings Google's machine
-  learning expertise to Android and iOS apps in a powerful yet easy-to-use package. Used for
-  document scanning, barcode scanning, text recognition and subject segmentation.
-- [LiteRT-LM](https://ai.google.dev/edge/litert) : Runtime for running Large Language Models
-  on-device, backing both AI Chat and the AI Writer.
-- [Coil](https://coil-kt.github.io/coil/) : Image loading for Compose.
-- [Lottie](https://airbnb.io/lottie/) : Animations on the home screen.
-- [commonmark-java](https://github.com/commonmark/commonmark-java) : Markdown parsing for
-  chat responses.
+# Tech stack
+
+- [Kotlin](https://kotlinlang.org/) with [Coroutines](https://kotlinlang.org/docs/coroutines-overview.html)
+  and [Flow](https://kotlinlang.org/docs/flow.html)
+- [Jetpack Compose](https://developer.android.com/jetpack/compose) with
+  [Material 3 Expressive](https://m3.material.io/blog/building-with-m3-expressive)
+- [Navigation 3](https://developer.android.com/guide/navigation/navigation-3): back-stack driven
+  navigation for Compose
+- [ViewModel](https://developer.android.com/topic/libraries/architecture/viewmodel),
+  [Room](https://developer.android.com/training/data-storage/room) and
+  [DataStore](https://developer.android.com/topic/libraries/architecture/datastore)
+- [Hilt](https://developer.android.com/training/dependency-injection/hilt-android) for dependency
+  injection
+- [LiteRT-LM](https://ai.google.dev/edge/litert): on-device LLM runtime behind AI Chat and the AI
+  Writer, on CPU or GPU
+- [ML Kit](https://developers.google.com/ml-kit): document scanning, barcode scanning, text
+  recognition and subject segmentation
+- [Coil](https://coil-kt.github.io/coil/) for image loading
+- [compose-richtext](https://github.com/halilozercan/compose-richtext) for Markdown in chat replies
 
 # Architecture
 
-- MVVM (View — ViewModel — Model), with Compose state instead of data binding
-- Repository pattern, with separate repositories for AI Chat and the AI Writer
-- Single module `:app`, package `com.rkbapps.tooai`
-- Room database `app_database` holding QR scans, recognized text, document scans, imported models,
+- MVVM with Compose state, repository pattern, single module `:app`, package `com.rkbapps.tooai`
+- Two activities: `MainActivity` for the app, and a translucent `AiWriterActivity` for the
+  system-wide text actions
+- AI Chat and the AI Writer have separate repositories. The writer never touches the chat database,
+  so rewriting text from another app can't create chat sessions
+- The sticker editor keeps one immutable document and one renderer, so the exported sticker is
+  exactly what was on screen
+- Room database `app_database` holds QR scans, recognised text, document scans, imported models,
   chat sessions and chat messages
-
-# Screenshots
-
-|                           Home                           |                                  Image Segmentation                                  |                                QR code Scanner                                 |
-|:--------------------------------------------------------:|:------------------------------------------------------------------------------------:|:------------------------------------------------------------------------------:|
-| <img alt="Home" src="screenshots/home.jpg" width="250"/> | <img alt="Image Segmentation" src="screenshots/image-segmentation.jpg" width="250"/> | <img alt="QR code Scanner" src="screenshots/qr-code-scanner.jpg" width="250"/> |
-
-|                                  Text Recognition                                  |                            AI Chat                             |                             AI Models                              |
-|:----------------------------------------------------------------------------------:|:--------------------------------------------------------------:|:------------------------------------------------------------------:|
-| <img alt="Text Recognition" src="screenshots/text-recognization.jpg" width="250"/> | <img alt="AI Chat" src="screenshots/ai_chat.jpg" width="250"/> | <img alt="AI Models" src="screenshots/ai_models.jpg" width="250"/> |
-
-|                               Document Scan                                |                             AI Writer                              |                                AI Writer — Polish                                |
-|:--------------------------------------------------------------------------:|:------------------------------------------------------------------:|:--------------------------------------------------------------------------------:|
-| <img alt="Document Scan" src="screenshots/document_scan.jpg" width="250"/> | <img alt="AI Writer" src="screenshots/ai_writer.jpg" width="250"/> | <img alt="AI Writer Polish" src="screenshots/ai_writer_polish.jpg" width="250"/> |
-
-*TooAi uses Material You, so the palette follows the device wallpaper — screenshots may differ in
-colour from your build.*
 
 # License
 
